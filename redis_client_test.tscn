@@ -1,0 +1,140 @@
+[gd_scene load_steps=7 format=3 uid="uid://bv4pk83apnmrd"]
+
+[ext_resource type="Script" uid="uid://vtxo0mo5jfml" path="res://redis_client.gd" id="1_mt8t8"]
+[ext_resource type="Script" uid="uid://bwf5rl5b7dmwv" path="res://backend_server.gd" id="2_hnckm"]
+[ext_resource type="Script" uid="uid://6ay5uegyapjr" path="res://network_manager.gd" id="2_xwhb6"]
+[ext_resource type="Script" uid="uid://dgpa12y2hlpdb" path="res://login_controller.gd" id="3_hnckm"]
+[ext_resource type="Script" uid="uid://bcor1juy76ms8" path="res://login_handler.gd" id="3_ntvim"]
+[ext_resource type="Script" uid="uid://b4p5j446f1lvt" path="res://access_panel.gd" id="6_nqir7"]
+
+[node name="GameNode" type="Node"]
+
+[node name="RedisStack" type="Node" parent="."]
+
+[node name="Server" type="Node" parent="RedisStack"]
+
+[node name="RedisClient" type="RedisClient" parent="RedisStack/Server"]
+script = ExtResource("1_mt8t8")
+
+[node name="BackendServer" type="Node" parent="RedisStack/Server" node_paths=PackedStringArray("rc")]
+script = ExtResource("2_hnckm")
+rc = NodePath("../RedisClient")
+
+[node name="LoginHandler" type="Node" parent="RedisStack/Server/BackendServer"]
+script = ExtResource("3_ntvim")
+
+[node name="Client" type="Node" parent="RedisStack"]
+
+[node name="NetworkManager" type="Node" parent="RedisStack/Client"]
+script = ExtResource("2_xwhb6")
+
+[node name="LoginController" type="Node" parent="RedisStack/Client/NetworkManager"]
+script = ExtResource("3_hnckm")
+
+[node name="AccessPanel" type="Control" parent="." node_paths=PackedStringArray("lh")]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1154.0
+offset_bottom = 647.0
+script = ExtResource("6_nqir7")
+lh = NodePath("../RedisStack/Client/NetworkManager/LoginController")
+
+[node name="PanelRegister" type="Panel" parent="AccessPanel"]
+layout_mode = 0
+offset_left = 136.0
+offset_top = 65.0
+offset_right = 429.0
+offset_bottom = 446.0
+
+[node name="Label" type="Label" parent="AccessPanel/PanelRegister"]
+layout_mode = 0
+offset_left = 77.0
+offset_top = 35.0
+offset_right = 214.78653
+offset_bottom = 69.31027
+theme_override_font_sizes/font_size = 21
+text = "Register"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LineEdit" type="LineEdit" parent="AccessPanel/PanelRegister"]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 127.0
+offset_right = 250.0
+offset_bottom = 168.0
+placeholder_text = "User"
+
+[node name="LineEdit2" type="LineEdit" parent="AccessPanel/PanelRegister"]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 198.0
+offset_right = 250.0
+offset_bottom = 235.0
+placeholder_text = "Password"
+
+[node name="RegisterButton" type="Button" parent="AccessPanel/PanelRegister"]
+layout_mode = 0
+offset_left = 95.0
+offset_top = 275.0
+offset_right = 181.0
+offset_bottom = 320.0
+text = "Register"
+
+[node name="RegisterStatus" type="Label" parent="AccessPanel/PanelRegister"]
+layout_mode = 0
+offset_top = 82.0
+offset_right = 294.0
+offset_bottom = 110.0
+theme_override_colors/font_color = Color(1, 0, 1, 1)
+horizontal_alignment = 1
+
+[node name="PanelLogin" type="Panel" parent="AccessPanel"]
+layout_mode = 0
+offset_left = 707.0
+offset_top = 66.0
+offset_right = 1000.0
+offset_bottom = 447.0
+
+[node name="Label" type="Label" parent="AccessPanel/PanelLogin"]
+layout_mode = 0
+offset_left = 77.0
+offset_top = 35.0
+offset_right = 214.78653
+offset_bottom = 69.31027
+theme_override_font_sizes/font_size = 21
+text = "Login"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LineEdit" type="LineEdit" parent="AccessPanel/PanelLogin"]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 127.0
+offset_right = 250.0
+offset_bottom = 168.0
+placeholder_text = "User"
+
+[node name="LineEdit2" type="LineEdit" parent="AccessPanel/PanelLogin"]
+layout_mode = 0
+offset_left = 43.0
+offset_top = 198.0
+offset_right = 250.0
+offset_bottom = 235.0
+placeholder_text = "Password"
+
+[node name="LoginButton" type="Button" parent="AccessPanel/PanelLogin"]
+layout_mode = 0
+offset_left = 117.0
+offset_top = 275.0
+offset_right = 183.0
+offset_bottom = 320.0
+text = "Login"
+
+[node name="LoginStatus" type="Label" parent="AccessPanel/PanelLogin"]
+layout_mode = 0
+offset_top = 82.0
+offset_right = 294.0
+offset_bottom = 110.0
+theme_override_colors/font_color = Color(1, 0, 1, 1)
+horizontal_alignment = 1

@@ -1,0 +1,36 @@
+# Godot 4+ specific ignores
+.godot/
+.vscode/
+/android/
+addons/godot_redis_cpp/bin/
+addons/godot_redis_cpp/thirdparty/
+
+*.translation
+*.remap
+*.rcedit
+*.dblite
+.editorconfig
+
+# Export templates
+export_presets.cfg
+
+# Mono-specific ignores
+.mono/
+
+# C# Godot-specific ignores
+.vscode/
+*.csproj
+*.sln
+
+# Nasconde i file di import
+*.import
+
+# Impostazioni locali dell'editor
+project.godot.local
+
+# Altri file comuni da ignorare
+*.o
+*.os
+*.so
+*.dll
+*.a

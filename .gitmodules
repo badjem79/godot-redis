@@ -1,0 +1,7 @@
+[submodule "addons/godot_redis_cpp/godot-cpp"]
+	path = addons/godot_redis_cpp/godot-cpp
+	url = https://github.com/godotengine/godot-cpp.git
+	branch = 4.4
+[submodule "addons/godot_redis_cpp/thirdparty/redis-plus-plus"]
+	path = addons/godot_redis_cpp/thirdparty/redis-plus-plus
+	url = https://github.com/sewenew/redis-plus-plus.git

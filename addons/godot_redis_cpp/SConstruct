@@ -1,0 +1,39 @@
+# SConstruct
+import os
+import sys
+
+env = SConscript("godot-cpp/SConstruct")
+
+# Abilita C++17, richiesto da redis-plus-plus
+env.Append(CXXFLAGS=['-std=c++17', '-fPIC', '-fexceptions'])
+
+# Ottieni la piattaforma target. Default a 'linux'
+platform = ARGUMENTS.get("platform", "linux")
+env.Append(CPPDEFINES=[
+    f"ON_{platform.upper()}"
+])
+env.Append(LIBS=['hiredis', 'ssl', 'crypto', 'uv'])
+
+env.Append(CPPPATH=[
+    'thirdparty/redis-plus-plus/src'
+])
+
+# Elenca i nostri file sorgente C++ (.cpp)
+sources = Glob('src/*.cpp')
+
+redis_plus_plus_sources = Glob('thirdparty/redis-plus-plus/src/sw/redis++/*.cpp')
+sources.extend(redis_plus_plus_sources)
+
+
+# Specifica dove mettere la libreria compilata e come chiamarla
+# La cartella 'bin' verrà creata automaticamente
+library_path = 'bin/libGodotRedis'
+
+# Comando per compilare la libreria condivisa (.so su Linux)
+library = env.SharedLibrary(
+    target=library_path,
+    source=sources
+)
+
+# Imposta la libreria come target di default
+Default(library)
