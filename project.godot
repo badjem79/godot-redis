@@ -14,3 +14,11 @@ config/name="cms-redis"
 run/main_scene="uid://bv4pk83apnmrd"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
+
+[audio]
+
+driver/driver="Dummy"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_redis_cpp/plugin.cfg")

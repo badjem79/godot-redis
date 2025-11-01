@@ -1,0 +1,70 @@
+[gd_scene load_steps=4 format=3 uid="uid://2filleyjash0"]
+
+[ext_resource type="Script" uid="uid://bwf5rl5b7dmwv" path="res://addons/godot_redis_cpp/backend_server.gd" id="2_0a38p"]
+[ext_resource type="Script" uid="uid://byghqd21xppbw" path="res://server_panel.gd" id="3_6nd8y"]
+[ext_resource type="Script" uid="uid://bcor1juy76ms8" path="res://addons/godot_redis_cpp/server_modules/login_handler.gd" id="3_snh03"]
+
+[node name="GameNode" type="Node"]
+
+[node name="RedisStack" type="Node" parent="."]
+
+[node name="Server" type="Node" parent="RedisStack"]
+
+[node name="RedisClient" type="RedisClient" parent="RedisStack/Server"]
+unique_name_in_owner = true
+
+[node name="BackendServer" type="Node" parent="RedisStack/Server" node_paths=PackedStringArray("redis_client")]
+unique_name_in_owner = true
+script = ExtResource("2_0a38p")
+redis_client = NodePath("../RedisClient")
+metadata/_custom_type_script = "uid://bwf5rl5b7dmwv"
+
+[node name="LoginHandler" type="Node" parent="RedisStack/Server/BackendServer"]
+script = ExtResource("3_snh03")
+metadata/_custom_type_script = "uid://bcor1juy76ms8"
+
+[node name="ServerPanel" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1154.0
+offset_bottom = 647.0
+script = ExtResource("3_6nd8y")
+
+[node name="Panel" type="Panel" parent="ServerPanel"]
+layout_mode = 0
+offset_left = 320.0
+offset_top = 141.0
+offset_right = 861.0
+offset_bottom = 490.0
+
+[node name="Label3" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 84.0
+offset_top = 152.0
+offset_right = 265.0
+offset_bottom = 175.0
+text = "REDIS CONNETION:"
+
+[node name="Label4" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 281.0
+offset_top = 152.0
+offset_right = 346.0
+offset_bottom = 175.0
+text = "ko"
+
+[node name="Label" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 85.0
+offset_top = 114.0
+offset_right = 205.0
+offset_bottom = 137.0
+text = "Server listening at port:"
+
+[node name="Label2" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 282.0
+offset_top = 114.0
+offset_right = 347.0
+offset_bottom = 137.0
+text = "1234"
