@@ -54,6 +54,17 @@ namespace godot {
         bool hset_multiple_values(const String& key, const Dictionary& data);
         Dictionary hget_all_values(const String& key);
 
+        // SETs
+        bool sadd_values(const String& key, const Array& members);
+        bool srem_values(const String& key, const Array& members);
+        Array smembers_keys(const String& key);
+
+        // --- METODI PER I SORTED SET (ZSET) ---
+        bool zadd_values(const String& key, const Dictionary& members_scores);
+        bool zrem_values(const String& key, const Array& members);
+        Variant zrange_values(const String& key, int64_t start, int64_t stop, bool with_scores = false);
+        Variant zrevrange_values(const String& key, int64_t start, int64_t stop, bool with_scores = false);
+
         // --- METODI DI CONTROLLO TRANSAZIONE ---
         bool begin_transaction(const Array& keys_to_watch);
         Dictionary commit_transaction();
@@ -62,6 +73,9 @@ namespace godot {
         bool is_in_transaction();
         // --- FINE METODI DI CONTROLLO ---
         
+        // --- METODO PER DEL ---
+        bool del_keys(const Array& keys);
+
         // SCAN
         Array scan_keys(const String& pattern, int64_t count = 10);
         

@@ -74,6 +74,15 @@ func run_redis_tests() -> void:
 	
 	await get_tree().create_timer(0.1).timeout
 	await run_transaction_test()
+
+	await get_tree().create_timer(0.1).timeout
+	await run_del_test()
+	
+	await get_tree().create_timer(0.1).timeout
+	await run_set_tests()
+	
+	await get_tree().create_timer(0.1).timeout
+	await run_sorted_set_tests()
 	
 	print("\n--- TEST REDIS COMPLETATI ---")
 	
@@ -168,3 +177,136 @@ func run_transaction_test() -> void:
 	# TEST DI FALLIMENTO (opzionale ma consigliato)
 	# Qui dovresti lanciare un altro client (o usare redis-cli) per modificare
 	# una delle chiavi 'watched' mentre la transazione è aperta per vedere il fallimento.
+# In uno script di test
+
+func run_del_test():
+	var key1 = "test:key:to:delete:1"
+	var key2 = "test:key:to:delete:2"
+
+	print("\n--- ESECUZIONE TEST DEL ---")
+
+	# 1. Crea alcune chiavi
+	print("\n1. Creo due chiavi di test...")
+	set_value(key1, "hello")
+	set_value(key2, "world")
+
+	# Verifica che esistano
+	var val1 = get_value(key1)
+	var val2 = get_value(key2)
+	print("   > Valori prima di DEL: '", val1, "', '", val2, "'")
+	if val1.is_empty() or val2.is_empty():
+		printerr("   > ERRORE: Le chiavi non sono state create correttamente.")
+		return
+
+	await get_tree().create_timer(0.1).timeout
+
+	# 2. Elimina le chiavi
+	print("\n2. Eseguo del_keys su entrambe le chiavi...")
+	var success = del_keys([key1, key2])
+	print("   > Operazione DEL riuscita: ", success)
+	
+	await get_tree().create_timer(0.1).timeout
+
+	# 3. Verifica che siano state eliminate
+	val1 = get_value(key1)
+	val2 = get_value(key2)
+	print("   > Valori dopo DEL: '", val1, "', '", val2, "'")
+
+	if val1.is_empty() and val2.is_empty():
+		print("   > RISULTATO: OK! Le chiavi sono state eliminate.")
+	else:
+		printerr("   > RISULTATO: FALLITO! Una o più chiavi esistono ancora.")
+		
+func run_set_tests():
+	# Assumendo che rc sia un riferimento valido al tuo RedisClient
+	var players_online_key = "online_players"
+	
+	print("\n--- ESECUZIONE TEST SET ---")
+	
+	del_keys([players_online_key])
+	
+	# 1. Test SADD (con il nuovo nome sadd_values)
+	print("\n1. Test SADD:")
+	var players_to_add = ["user:101", "user:102", "user:103"]
+	print("   > Aggiungo i giocatori: ", players_to_add)
+	var success_add = sadd_values(players_online_key, players_to_add)
+	print("   > Operazione SADD riuscita: ", success_add)
+	
+	await get_tree().create_timer(0.1).timeout
+	
+	# 2. Test SMEMBERS (con il nuovo nome smembers_keys)
+	print("\n2. Test SMEMBERS:")
+	var online_players = smembers_keys(players_online_key)
+	print("   > Giocatori online recuperati: ", online_players)
+	# Nota: i SET non hanno un ordine, quindi il controllo rimane basato su size e 'has'
+	if online_players.size() == 3 and online_players.has("user:102"):
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+
+	# 3. Test SREM (con il nuovo nome srem_values)
+	print("\n3. Test SREM:")
+	var players_to_remove = ["user:102"]
+	print("   > Rimuovo il giocatore: ", players_to_remove)
+	var success_rem = srem_values(players_online_key, players_to_remove)
+	print("   > Operazione SREM riuscita: ", success_rem)
+	
+	await get_tree().create_timer(0.1).timeout
+	
+	online_players = smembers_keys(players_online_key)
+	print("   > Giocatori online dopo la rimozione: ", online_players)
+	if online_players.size() == 2 and not online_players.has("user:102"):
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+
+func run_sorted_set_tests():
+
+	var leaderboard_key = "leaderboard:season1"
+	
+	print("\n--- ESECUZIONE TEST SORTED SET (LEADERBOARD) ---")
+	
+	del_keys([leaderboard_key]) # Pulisci per un test pulito
+	
+	# 1. Test ZADD (con zadd_values)
+	print("\n1. Test ZADD:")
+	var players_scores = {
+		"user:101": 1500, # Alice
+		"user:102": 1850, # Bob
+		"user:103": 1200, # Charlie
+		"user:104": 2100 # Diana
+	}
+	print("   > Aggiungo punteggi dei giocatori: ", players_scores)
+	zadd_values(leaderboard_key, players_scores)
+	
+	# Aggiorniamo il punteggio di un giocatore
+	zadd_values(leaderboard_key, {"user:101": 1550}) # Alice vince una partita
+	
+	await get_tree().create_timer(0.1).timeout
+	
+	# 2. Test ZREVRANGE (per ottenere la top 3)
+	print("\n2. Test ZREVRANGE (Top 3):")
+	var top_3_with_scores = zrevrange_values(leaderboard_key, 0, 2, true)
+	print("   > Classifica Top 3 (con punteggi): ", top_3_with_scores)
+	
+	# Verifichiamo che Diana sia la prima
+	var top_player = top_3_with_scores.keys()[0]
+	if top_3_with_scores.size() == 3 and top_player == "user:104":
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+
+	# 3. Test ZREM (con zrem_values)
+	print("\n3. Test ZREM:")
+	var player_to_remove = ["user:103"] # Charlie viene bannato
+	print("   > Rimuovo il giocatore: ", player_to_remove)
+	zrem_values(leaderboard_key, player_to_remove)
+
+	await get_tree().create_timer(0.1).timeout
+	
+	var top_players_after_rem = zrevrange_values(leaderboard_key, 0, -1) # Ottieni tutti
+	print("   > Classifica dopo la rimozione: ", top_players_after_rem)
+	if top_players_after_rem.size() == 3 and not top_players_after_rem.has("user:103"):
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")

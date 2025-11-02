@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://dk8pqyt60mi5k"]
+
+[ext_resource type="Script" uid="uid://vtxo0mo5jfml" path="res://redis_client_test.gd" id="1_spsg2"]
+
+[node name="GameNode" type="Node"]
+
+[node name="RedisStack" type="Node" parent="."]
+
+[node name="Server" type="Node" parent="RedisStack"]
+
+[node name="RedisClient" type="RedisClient" parent="RedisStack/Server"]
+script = ExtResource("1_spsg2")
+test = true

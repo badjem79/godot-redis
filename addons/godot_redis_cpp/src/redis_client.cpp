@@ -37,6 +37,17 @@ void RedisClient::_bind_methods() {
     ClassDB::bind_method(D_METHOD("hset_multiple_values", "key", "data"), &RedisClient::hset_multiple_values);
     ClassDB::bind_method(D_METHOD("hget_all_values", "key"), &RedisClient::hget_all_values);
 
+    // --- BIND DEI METODI PER I SET ---
+    ClassDB::bind_method(D_METHOD("sadd_values", "key", "members"), &RedisClient::sadd_values);
+    ClassDB::bind_method(D_METHOD("srem_values", "key", "members"), &RedisClient::srem_values);
+    ClassDB::bind_method(D_METHOD("smembers_keys", "key"), &RedisClient::smembers_keys);
+
+    // --- BIND DEI METODI PER I SORTED SET (ZSET) ---
+    ClassDB::bind_method(D_METHOD("zadd_values", "key", "members_scores"), &RedisClient::zadd_values);
+    ClassDB::bind_method(D_METHOD("zrem_values", "key", "members"), &RedisClient::zrem_values);
+    ClassDB::bind_method(D_METHOD("zrange_values", "key", "start", "stop", "with_scores"), &RedisClient::zrange_values, DEFVAL(false));
+    ClassDB::bind_method(D_METHOD("zrevrange_values", "key", "start", "stop", "with_scores"), &RedisClient::zrevrange_values, DEFVAL(false));
+
     // SCAN
     ClassDB::bind_method(D_METHOD("scan_keys", "pattern", "count"), &RedisClient::scan_keys, DEFVAL(10));
     ClassDB::bind_method(D_METHOD("is_connected"), &RedisClient::is_connected);
@@ -46,6 +57,9 @@ void RedisClient::_bind_methods() {
     ClassDB::bind_method(D_METHOD("commit_transaction"), &RedisClient::commit_transaction);
     ClassDB::bind_method(D_METHOD("discard_transaction"), &RedisClient::discard_transaction);
     ClassDB::bind_method(D_METHOD("is_in_transaction"), &RedisClient::is_in_transaction);
+
+    // --- BIND DEL METODO DEL ---
+    ClassDB::bind_method(D_METHOD("del_keys", "keys"), &RedisClient::del_keys);
 
     // Segnale per notificare il risultato della connessione
     ADD_SIGNAL(MethodInfo("connection_status_changed", PropertyInfo(Variant::BOOL, "is_connected"), PropertyInfo(Variant::STRING, "message")));
@@ -259,6 +273,183 @@ Dictionary RedisClient::hget_all_values(const String& key) {
     return result;
 }
 
+bool RedisClient::sadd_values(const String& key, const Array& members) {
+    if (!is_connected() || members.is_empty()) return false;
+    
+    try {
+        std::vector<std::string> member_vec;
+        member_vec.reserve(members.size());
+        for (int i = 0; i < members.size(); ++i) {
+            member_vec.push_back(String(members[i]).utf8().get_data());
+        }
+
+        if (is_in_transaction()) {
+            _transaction->sadd(key.utf8().get_data(), member_vec.begin(), member_vec.end());
+        } else {
+            _redis_client->sadd(key.utf8().get_data(), member_vec.begin(), member_vec.end());
+        }
+        return true;
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in sadd_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return false;
+    }
+}
+
+bool RedisClient::srem_values(const String& key, const Array& members) {
+    if (!is_connected() || members.is_empty()) return false;
+
+    try {
+        std::vector<std::string> member_vec;
+        member_vec.reserve(members.size());
+        for (int i = 0; i < members.size(); ++i) {
+            member_vec.push_back(String(members[i]).utf8().get_data());
+        }
+
+        if (is_in_transaction()) {
+            _transaction->srem(key.utf8().get_data(), member_vec.begin(), member_vec.end());
+        } else {
+            _redis_client->srem(key.utf8().get_data(), member_vec.begin(), member_vec.end());
+        }
+        return true;
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in srem_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return false;
+    }
+}
+
+Array RedisClient::smembers_keys(const String& key) {
+    Array keys_array;
+    if (!is_connected()) return keys_array;
+
+    try {
+        std::vector<std::string> member_vec;
+        _redis_client->smembers(key.utf8().get_data(), std::back_inserter(member_vec));
+        
+        for (const auto& member : member_vec) {
+            keys_array.push_back(String(member.c_str()));
+        }
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in smembers_keys: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+    }
+    
+    return keys_array;
+}
+
+bool RedisClient::zadd_values(const String& key, const Dictionary& members_scores) {
+    if (!is_connected() || members_scores.is_empty()) return false;
+
+    try {
+        // Converti il Dictionary in un contenitore C++ per redis-plus-plus
+        std::unordered_map<std::string, double> m_s_map;
+        Array keys = members_scores.keys();
+        for (int i = 0; i < keys.size(); ++i) {
+            String member = keys[i];
+            double score = members_scores[keys[i]];
+            m_s_map[member.utf8().get_data()] = score;
+        }
+
+        if (is_in_transaction()) {
+            _transaction->zadd(key.utf8().get_data(), m_s_map.begin(), m_s_map.end());
+        } else {
+            _redis_client->zadd(key.utf8().get_data(), m_s_map.begin(), m_s_map.end());
+        }
+        return true;
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in zadd_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+    }
+    return false;
+}
+
+bool RedisClient::zrem_values(const String& key, const Array& members) {
+    if (!is_connected() || members.is_empty()) return false;
+
+    try {
+        std::vector<std::string> member_vec;
+        member_vec.reserve(members.size());
+        for (int i = 0; i < members.size(); ++i) {
+            member_vec.push_back(String(members[i]).utf8().get_data());
+        }
+
+        if (is_in_transaction()) {
+            _transaction->zrem(key.utf8().get_data(), member_vec.begin(), member_vec.end());
+        } else {
+            _redis_client->zrem(key.utf8().get_data(), member_vec.begin(), member_vec.end());
+        }
+        return true;
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in zrem_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+    }
+    return false;
+}
+
+Variant RedisClient::zrange_values(const String& key, int64_t start, int64_t stop, bool with_scores) {
+
+    try {
+        if (with_scores) {
+            Dictionary result;
+            std::vector<std::pair<std::string, double>> values;
+            _redis_client->zrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
+            for (const auto& pair : values) {
+                result[String(pair.first.c_str())] = pair.second;
+            }
+            return result;
+        } else {
+            Array result;
+            std::vector<std::string> values;
+            _redis_client->zrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
+            for (const auto& val : values) {
+                result.push_back(String(val.c_str()));
+            }
+            return result;
+        }
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in zrange_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+    }
+
+    return with_scores ? Variant(Dictionary()) : Variant(Array());
+}
+
+Variant RedisClient::zrevrange_values(const String& key, int64_t start, int64_t stop, bool with_scores) {
+
+    try {
+        if (with_scores) {
+            Dictionary result;
+            std::vector<std::pair<std::string, double>> values;
+            _redis_client->zrevrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
+            for (const auto& pair : values) {
+                result[String(pair.first.c_str())] = pair.second;
+            }
+            return result;
+        } else {
+            Array result;
+            std::vector<std::string> values;
+            _redis_client->zrevrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
+            for (const auto& val : values) {
+                result.push_back(String(val.c_str()));
+            }
+            return result;
+        }
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in zrevrange_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+    }
+
+    return with_scores ? Variant(Dictionary()) : Variant(Array());
+}
+
 // SCAN: Scansiona le chiavi in modo sicuro
 Array RedisClient::scan_keys(const String& pattern, int64_t count) {
     Array keys_array;
@@ -385,4 +576,31 @@ Dictionary RedisClient::commit_transaction() {
     clear_transaction();
 
     return result;
+}
+
+bool RedisClient::del_keys(const Array& keys) {
+    if (!is_connected() || keys.is_empty()) return false;
+
+    try {
+        // Converti l'Array di Godot in un contenitore C++
+        std::vector<std::string> keys_vec;
+        keys_vec.reserve(keys.size());
+        for (int i = 0; i < keys.size(); ++i) {
+            keys_vec.push_back(String(keys[i]).utf8().get_data());
+        }
+
+        if (is_in_transaction()) {
+            // Modalità Transazione
+            _transaction->del(keys_vec.begin(), keys_vec.end());
+        } else {
+            // Modalità Normale
+            _redis_client->del(keys_vec.begin(), keys_vec.end());
+        }
+        return true;
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in del_keys: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return false;
+    }
 }
