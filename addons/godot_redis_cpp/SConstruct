@@ -4,15 +4,58 @@ import sys
 
 env = SConscript("godot-cpp/SConstruct")
 
-# Abilita C++17, richiesto da redis-plus-plus
-env.Append(CXXFLAGS=['-std=c++17', '-fPIC', '-fexceptions'])
+if env["platform"] == "windows":
+    # Flag per il compilatore MSVC (cl.exe)
+    # /std:c++17 -> Abilita lo standard C++17.
+    # /EHsc       -> Abilita le eccezioni C++ (equivalente a -fexceptions).
+    # Non serve un equivalente di -fPIC.
+    env.Append(CXXFLAGS=['/std:c++17', '/EHsc'])
+    
+    # Su Windows, è buona pratica definire questa macro quando si compilano DLL.
+    # godot-cpp potrebbe già farlo, ma aggiungerla non fa male.
+    env.Append(CPPDEFINES=['_WINDOWS', 'TYPELIB_IS_MODULE'])
+else:
+    # Flag per compilatori GCC/Clang (Linux, macOS, etc.)
+    # Abilita C++17, richiesto da redis-plus-plus
+    env.Append(CXXFLAGS=['-std=c++17', '-fPIC', '-fexceptions'])
 
 # Ottieni la piattaforma target. Default a 'linux'
 platform = ARGUMENTS.get("platform", "linux")
 env.Append(CPPDEFINES=[
     f"ON_{platform.upper()}"
 ])
-env.Append(LIBS=['hiredis', 'ssl', 'crypto', 'uv'])
+
+if env["platform"] == "windows":
+    # VCPKG_ROOT è una variabile d'ambiente che punta alla tua installazione di vcpkg
+    vcpkg_root = os.environ.get("VCPKG_ROOT")
+    if vcpkg_root:
+        vcpkg_installed_dir = os.path.join(vcpkg_root, "installed", "x64-windows")
+        
+        # Aggiungi i percorsi degli header
+        env.Append(CPPPATH=[
+            os.path.join(vcpkg_installed_dir, "include")
+        ])
+        
+        # Aggiungi i percorsi delle librerie (.lib)
+        env.Append(LIBPATH=[
+            os.path.join(vcpkg_installed_dir, "lib")
+        ])
+
+        # --- LIBRERIE PER WINDOWS ---
+        # I nomi delle librerie OpenSSL generate da vcpkg potrebbero essere libssl e libcrypto.
+        # È buona pratica aggiungerli esplicitamente.
+        # Inoltre, aggiungiamo le librerie di sistema necessarie.
+        libs_windows = ['hiredis', 'uv', 'libssl', 'libcrypto', 'ws2_32', 'iphlpapi', 'crypt32', 'user32']
+        
+        # Gestione Debug/Release (opzionale ma consigliato)
+        # Se compili in debug (target=debug), vcpkg usa le librerie con suffisso 'd'.
+        # Per ora, usiamo la versione di default che dovrebbe funzionare per Release.
+        env.Append(LIBS=libs_windows)
+        
+    else:
+        print("WARNING: VCPKG_ROOT environment variable not set. Windows build may fail.")
+else:
+    env.Append(LIBS=['hiredis', 'ssl', 'crypto', 'uv'])
 
 env.Append(CPPPATH=[
     'thirdparty/redis-plus-plus/src'

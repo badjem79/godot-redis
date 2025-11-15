@@ -51,6 +51,7 @@ namespace godot {
         // HASHES
         bool hset_value(const String& key, const String& field, const String& value);
         String hget_value(const String& key, const String& field);
+        bool hdel_values(const String& key, const Array& fields);
         bool hset_multiple_values(const String& key, const Dictionary& data);
         Dictionary hget_all_values(const String& key);
 
@@ -58,6 +59,8 @@ namespace godot {
         bool sadd_values(const String& key, const Array& members);
         bool srem_values(const String& key, const Array& members);
         Array smembers_keys(const String& key);
+        int64_t scard_count(const String& key);
+        bool sismember(const String& key, const String& member);
 
         // --- METODI PER I SORTED SET (ZSET) ---
         bool zadd_values(const String& key, const Dictionary& members_scores);

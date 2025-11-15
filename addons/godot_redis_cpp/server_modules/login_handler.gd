@@ -58,7 +58,6 @@ func _handle_register(peer_id: int, payload: Dictionary):
 		"username": username,
 		"password_hash": password_hash,
 		"level": 1,
-		"gold": 100,
 		"created_at": Time.get_unix_time_from_system()
 	}
 	

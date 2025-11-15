@@ -260,8 +260,49 @@ func run_set_tests():
 	else:
 		printerr("   > RISULTATO: FALLITO!")
 
-func run_sorted_set_tests():
+func run_scard_test():
+	var test_set_key = "test:scard_set"
+	
+	print("\n--- ESECUZIONE TEST SCARD ---")
+	
+	# 1. Pulisci la chiave per un test pulito
+	del_keys([test_set_key])
+	await get_tree().create_timer(0.1).timeout
 
+	# 2. Controlla il conteggio su una chiave inesistente (deve essere 0)
+	var count = scard_count(test_set_key)
+	print("   > Conteggio su chiave inesistente: ", count)
+	if count != 0:
+		printerr("   > RISULTATO: FALLITO! Il conteggio dovrebbe essere 0.")
+		return
+
+	# 3. Aggiungi alcuni membri
+	var members_to_add = ["alpha", "beta", "gamma"]
+	sadd_values(test_set_key, members_to_add)
+	print("   > Aggiunti 3 membri: ", members_to_add)
+	await get_tree().create_timer(0.1).timeout
+	
+	# 4. Controlla il conteggio (deve essere 3)
+	count = scard_count(test_set_key)
+	print("   > Conteggio dopo l'aggiunta: ", count)
+	if count != 3:
+		printerr("   > RISULTATO: FALLITO! Il conteggio dovrebbe essere 3.")
+		return
+		
+	# 5. Aggiungi un membro duplicato e uno nuovo
+	sadd_values(test_set_key, ["gamma", "delta"]) # 'gamma' è un duplicato
+	print("   > Aggiunti 'gamma' (duplicato) and 'delta' (nuovo)")
+	await get_tree().create_timer(0.1).timeout
+
+	# 6. Controlla il conteggio finale (deve essere 4)
+	count = scard_count(test_set_key)
+	print("   > Conteggio finale: ", count)
+	if count == 4:
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO! Il conteggio dovrebbe essere 4.")
+
+func run_sorted_set_tests():
 	var leaderboard_key = "leaderboard:season1"
 	
 	print("\n--- ESECUZIONE TEST SORTED SET (LEADERBOARD) ---")

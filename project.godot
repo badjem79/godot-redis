@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="cms-redis"
-run/main_scene="uid://bv4pk83apnmrd"
-config/features=PackedStringArray("4.5", "Forward Plus")
+run/main_scene="uid://dk8pqyt60mi5k"
+config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
 [audio]

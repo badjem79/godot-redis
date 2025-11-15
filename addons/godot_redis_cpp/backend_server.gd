@@ -10,6 +10,7 @@ var web_server = WebSocketServer.new()
 # Gli handlers saranno i nodi figli
 var message_handlers = {}
 var authenticated_peers = {}
+var user_id_to_peer_id_map = {}
 
 func _ready():
 	# Verifica che il client Redis sia disponibile
@@ -56,7 +57,12 @@ func _on_client_connected(peer_id: int):
 
 func _on_client_disconnected(peer_id: int):
 	print("BackendServer: Client disconnesso: ", peer_id)
-	authenticated_peers.erase(peer_id) # Rimuovi l'utente se era autenticato
+	if authenticated_peers.has(peer_id):
+		# Rimuovi da entrambe le mappe quando un utente si disconnette
+		var user_id = authenticated_peers[peer_id].user_id
+		authenticated_peers.erase(peer_id)
+		if user_id_to_peer_id_map.has(user_id):
+			user_id_to_peer_id_map.erase(user_id)
 
 func _on_message_received(peer_id: int, message: String):
 	"""
@@ -107,6 +113,8 @@ func authenticate_peer(peer_id: int, user_id: int, token: String):
 		"user_id": user_id,
 		"token": token
 	}
+	user_id_to_peer_id_map[user_id] = peer_id
+	print("SERVER: Peer ", peer_id, " autenticato come utente ", user_id)
 
 func _is_peer_authenticated(peer_id: int, token: String) -> bool:
 	"""Verifica se un peer è autenticato e il suo token è valido."""
@@ -116,3 +124,10 @@ func _is_peer_authenticated(peer_id: int, token: String) -> bool:
 	# In un sistema reale, il token JWT avrebbe una scadenza e una firma da verificare.
 	# Per ora, confrontiamo semplicemente il token salvato.
 	return authenticated_peers[peer_id].token == token
+
+func get_peer_id_from_user_id(user_id: int) -> int:
+	"""
+	Restituisce il peer_id di un utente connesso e autenticato, dato il suo user_id.
+	Restituisce -1 se l'utente non è attualmente connesso.
+	"""
+	return user_id_to_peer_id_map.get(user_id, -1)

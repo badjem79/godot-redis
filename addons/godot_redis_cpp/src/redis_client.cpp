@@ -34,6 +34,7 @@ void RedisClient::_bind_methods() {
     // HASHES
     ClassDB::bind_method(D_METHOD("hset_value", "key", "field", "value"), &RedisClient::hset_value);
     ClassDB::bind_method(D_METHOD("hget_value", "key", "field"), &RedisClient::hget_value);
+    ClassDB::bind_method(D_METHOD("hdel_values", "key", "fields"), &RedisClient::hdel_values);
     ClassDB::bind_method(D_METHOD("hset_multiple_values", "key", "data"), &RedisClient::hset_multiple_values);
     ClassDB::bind_method(D_METHOD("hget_all_values", "key"), &RedisClient::hget_all_values);
 
@@ -41,6 +42,8 @@ void RedisClient::_bind_methods() {
     ClassDB::bind_method(D_METHOD("sadd_values", "key", "members"), &RedisClient::sadd_values);
     ClassDB::bind_method(D_METHOD("srem_values", "key", "members"), &RedisClient::srem_values);
     ClassDB::bind_method(D_METHOD("smembers_keys", "key"), &RedisClient::smembers_keys);
+    ClassDB::bind_method(D_METHOD("scard_count", "key"), &RedisClient::scard_count);
+    ClassDB::bind_method(D_METHOD("sismember", "key", "member"), &RedisClient::sismember);
 
     // --- BIND DEI METODI PER I SORTED SET (ZSET) ---
     ClassDB::bind_method(D_METHOD("zadd_values", "key", "members_scores"), &RedisClient::zadd_values);
@@ -218,6 +221,36 @@ String RedisClient::hget_value(const String& key, const String& field) {
     }
 }
 
+// HDEL: Rimuove un campo da un hash
+bool RedisClient::hdel_values(const String& key, const Array& fields) {
+    if (!is_connected() || fields.is_empty()) {
+        return false;
+    }
+
+    try {
+        // Converti l'Array di Godot in un contenitore C++
+        std::vector<std::string> fields_vec;
+        fields_vec.reserve(fields.size());
+        for (int i = 0; i < fields.size(); ++i) {
+            fields_vec.push_back(String(fields[i]).utf8().get_data());
+        }
+
+        if (is_in_transaction()) {
+            // Modalità Transazione
+            _transaction->hdel(key.utf8().get_data(), fields_vec.begin(), fields_vec.end());
+        } else {
+            // Modalità Normale
+            _redis_client->hdel(key.utf8().get_data(), fields_vec.begin(), fields_vec.end());
+        }
+        return true;
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in hdel_values: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return false;
+    }
+}
+
 bool RedisClient::hset_multiple_values(const String& key, const Dictionary& data) {
     if (!is_connected()) return false;
 
@@ -339,6 +372,36 @@ Array RedisClient::smembers_keys(const String& key) {
     }
     
     return keys_array;
+}
+
+int64_t RedisClient::scard_count(const String& key) {
+    if (!is_connected()) {
+       return 0; // Se non siamo connessi, un set ha 0 elementi
+    }
+
+    try {
+        // Il comando scard di redis-plus-plus restituisce un long long,
+        // che è compatibile con il nostro int64_t.
+        return _redis_client->scard(key.utf8().get_data());
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in scard_count: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return 0; // Restituisce 0 in caso di errore
+    }
+}
+
+bool RedisClient::sismember(const String& key, const String& member) {
+    if (!is_connected()) return false;
+
+    try {
+        return _redis_client->sismember(key.utf8().get_data(), member.utf8().get_data());
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in sismember: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return false;
+    }
 }
 
 bool RedisClient::zadd_values(const String& key, const Dictionary& members_scores) {
