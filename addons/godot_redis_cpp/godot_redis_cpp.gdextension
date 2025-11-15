@@ -6,8 +6,7 @@ compatibility_minimum = "4.4"
 
 [libraries]
 
-linux.64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.so"
-# Aggiungi qui le altre piattaforme quando le compilerai
-windows.64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.dll"
-
-# macos.64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.dylib"
+linux.x86_64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.so"
+windows.x86_64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.dll"
+# macos.x86_64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.dylib"
+# macos.arm64 = "res://addons/godot_redis_cpp/bin/libGodotRedis.dylib"

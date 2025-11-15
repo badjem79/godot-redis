@@ -13,7 +13,7 @@ signal profiles_received(profiles_data)
 func register_self_with_network_manager():
 	network_manager.register_handler("PROFILE_UPDATE_RESULT", Callable(self, "_on_profile_update_result"))
 	network_manager.register_handler("ACHIEVEMENT_UNLOCKED_RESULT", Callable(self, "_on_achievement_unlocked_result"))
-    network_manager.register_handler("GET_PROFILES_RESULT", Callable(self, "_on_profiles_received"))
+	network_manager.register_handler("GET_PROFILES_RESULT", Callable(self, "_on_profiles_received"))
 
 # --- API Pubblica di questo Modulo ---
 

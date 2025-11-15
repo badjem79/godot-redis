@@ -8,12 +8,14 @@ if env["platform"] == "windows":
     # Flag per il compilatore MSVC (cl.exe)
     # /std:c++17 -> Abilita lo standard C++17.
     # /EHsc       -> Abilita le eccezioni C++ (equivalente a -fexceptions).
-    # Non serve un equivalente di -fPIC.
+    # NON aggiungere /MD o /MT perché godot-cpp lo gestisce già
     env.Append(CXXFLAGS=['/std:c++17', '/EHsc'])
     
-    # Su Windows, è buona pratica definire questa macro quando si compilano DLL.
-    # godot-cpp potrebbe già farlo, ma aggiungerla non fa male.
-    env.Append(CPPDEFINES=['_WINDOWS', 'TYPELIB_IS_MODULE'])
+    # Definizioni necessarie per esportare simboli da DLL
+    env.Append(CPPDEFINES=['_WINDOWS', 'TYPELIB_IS_MODULE', 'GDEXTENSION_EXPORT'])
+    
+    # Assicurati che i simboli siano esportati correttamente
+    env.Append(LINKFLAGS=['/EXPORT:godot_redis_library_init'])
 else:
     # Flag per compilatori GCC/Clang (Linux, macOS, etc.)
     # Abilita C++17, richiesto da redis-plus-plus
@@ -47,11 +49,29 @@ if env["platform"] == "windows":
         # Inoltre, aggiungiamo le librerie di sistema necessarie.
         libs_windows = ['hiredis', 'uv', 'libssl', 'libcrypto', 'ws2_32', 'iphlpapi', 'crypt32', 'user32']
         
-        # Gestione Debug/Release (opzionale ma consigliato)
-        # Se compili in debug (target=debug), vcpkg usa le librerie con suffisso 'd'.
-        # Per ora, usiamo la versione di default che dovrebbe funzionare per Release.
-        env.Append(LIBS=libs_windows)
+        # Aggiunge il suffisso 'd' alle librerie se la build è di tipo debug
+        suffix = 'd' if ARGUMENTS.get('target') == 'debug' else ''
+        env.Append(LIBS=[lib + suffix for lib in libs_windows])
         
+        # --- COPIA AUTOMATICA DELLE DLL ---
+        # Aggiungiamo un'azione post-compilazione per copiare le DLL necessarie.
+        def copy_vcpkg_dlls(target, source, env):
+            vcpkg_bin_dir = os.path.join(vcpkg_installed_dir, "bin")
+            addon_bin_dir = os.path.join(str(env.Dir('.')), 'bin')
+            
+            # Elenco delle DLL da copiare
+            suffix = 'd' if ARGUMENTS.get('target') == 'debug' else ''
+            required_dlls = [f'hiredis{suffix}.dll', f'libuv{suffix}.dll']
+            
+            # Per OpenSSL, i nomi possono variare, quindi usiamo un glob
+            import glob
+            # Nota: le DLL di OpenSSL non hanno il suffisso 'd'
+            required_dlls.extend([os.path.basename(f) for f in glob.glob(os.path.join(vcpkg_bin_dir, 'libcrypto-*.dll'))])
+            required_dlls.extend([os.path.basename(f) for f in glob.glob(os.path.join(vcpkg_bin_dir, 'libssl-*.dll'))])
+
+            for dll in required_dlls:
+                env.Install(addon_bin_dir, os.path.join(vcpkg_bin_dir, dll))
+
     else:
         print("WARNING: VCPKG_ROOT environment variable not set. Windows build may fail.")
 else:
@@ -64,9 +84,28 @@ env.Append(CPPPATH=[
 # Elenca i nostri file sorgente C++ (.cpp)
 sources = Glob('src/*.cpp')
 
-redis_plus_plus_sources = Glob('thirdparty/redis-plus-plus/src/sw/redis++/*.cpp')
-sources.extend(redis_plus_plus_sources)
-
+# Aggiungi solo i file sorgente essenziali di redis-plus-plus
+# Evita i file async che richiedono dipendenze aggiuntive
+redis_plusplus_base = 'thirdparty/redis-plus-plus/src/sw/redis++'
+redis_plusplus_sources = [
+    os.path.join(redis_plusplus_base, 'command.cpp'),
+    os.path.join(redis_plusplus_base, 'command_options.cpp'),
+    os.path.join(redis_plusplus_base, 'connection.cpp'),
+    os.path.join(redis_plusplus_base, 'connection_pool.cpp'),
+    os.path.join(redis_plusplus_base, 'crc16.cpp'),
+    os.path.join(redis_plusplus_base, 'errors.cpp'),
+    os.path.join(redis_plusplus_base, 'pipeline.cpp'),
+    os.path.join(redis_plusplus_base, 'redis.cpp'),
+    os.path.join(redis_plusplus_base, 'redis_cluster.cpp'),
+    os.path.join(redis_plusplus_base, 'redis_uri.cpp'),
+    os.path.join(redis_plusplus_base, 'reply.cpp'),
+    os.path.join(redis_plusplus_base, 'sentinel.cpp'),
+    os.path.join(redis_plusplus_base, 'shards.cpp'),
+    os.path.join(redis_plusplus_base, 'shards_pool.cpp'),
+    os.path.join(redis_plusplus_base, 'subscriber.cpp'),
+    os.path.join(redis_plusplus_base, 'transaction.cpp'),
+]
+sources.extend(redis_plusplus_sources)
 
 # Specifica dove mettere la libreria compilata e come chiamarla
 # La cartella 'bin' verrà creata automaticamente
@@ -80,3 +119,12 @@ library = env.SharedLibrary(
 
 # Imposta la libreria come target di default
 Default(library)
+
+# Se siamo su Windows e vcpkg è configurato, esegui la funzione di copia.
+#if env["platform"] == "windows" and vcpkg_root:
+    # Usa Alias per creare un target "virtuale" che dipende dalla libreria
+#    copy_action = Alias("copy_dlls", env.Action(copy_vcpkg_dlls))
+    # Assicura che la copia avvenga dopo la compilazione della libreria
+#    Depends(copy_action, library)
+    # Rendi la copia parte del target di default
+#    Default(copy_action)
