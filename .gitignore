@@ -32,5 +32,6 @@ project.godot.local
 *.o
 *.os
 *.so
+*.obj
 *.dll
 *.a
