@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://ch1u8v0wlof24"]
+
+[ext_resource type="Script" uid="uid://6ay5uegyapjr" path="res://addons/godot_redis_cpp/network_manager.gd" id="1_8tvo0"]
+
+[node name="NetworkManager" type="Node2D"]
+script = ExtResource("1_8tvo0")
+server_url = "ws://127.0.0.1:9999"

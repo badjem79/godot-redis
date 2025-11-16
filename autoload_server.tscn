@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://b28nnrf8kggo2"]
+
+[ext_resource type="Script" uid="uid://bwf5rl5b7dmwv" path="res://addons/godot_redis_cpp/backend_server.gd" id="1_glfno"]
+
+[node name="BackendServer" type="Node2D" node_paths=PackedStringArray("redis_client")]
+script = ExtResource("1_glfno")
+redis_client = NodePath("RedisClient")
+WEB_PORT = 9999
+
+[node name="RedisClient" type="RedisClient" parent="."]
+auto_connect = false

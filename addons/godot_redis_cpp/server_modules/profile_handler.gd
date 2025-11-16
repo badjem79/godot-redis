@@ -1,9 +1,6 @@
 # ProfileHandler.gd
 extends Node
 
-@onready var server = get_parent()
-@onready var rc: RedisClient = server.redis_client
-
 @export_category("Profile Fields")
 # --- Lista dei campi del profilo che il client è autorizzato a modificare ---
 @export var allowed_profile_fields = [
@@ -38,6 +35,13 @@ extends Node
 # Questa lista è interna e non esportata per sicurezza.
 const PROTECTED_FIELDS = ["id", "username", "password_hash", "created_at", "level", "gold"]
 
+func _ready():
+	# Registra questo gestore con il server autoload
+	BackendServer.register_handler(self)
+	
+func _exit_tree():
+	BackendServer.unregister_handler(self)
+
 # Questo metodo è il "contratto" per la registrazione automatica
 func get_handled_message_types() -> Array[String]:
 	return ["PROFILE_UPDATE", "ACHIEVEMENT_UNLOCK", "GET_PROFILES"]
@@ -56,7 +60,7 @@ func handle_message(peer_id: int, msg_type: String, payload: Dictionary, token: 
 
 # --- Gestori di Logica Interni ---
 func _handle_get_profiles(peer_id: int, payload: Dictionary):
-	var requester_user_id = server.authenticated_peers[peer_id].user_id
+	var requester_user_id = BackendServer.authenticated_peers[peer_id].user_id
 	var ids_to_fetch = payload.get("ids", [])
 	
 	# ... (controlli sulla dimensione di ids_to_fetch) ...
@@ -70,7 +74,7 @@ func _handle_get_profiles(peer_id: int, payload: Dictionary):
 	for user_id in ids_to_fetch:
 		var id = int(user_id)
 		var user_key = "user:" + str(id)
-		var full_profile = rc.hget_all_values(user_key)
+		var full_profile = BackendServer.redis_client.hget_all_values(user_key)
 		
 		if not full_profile.is_empty():
 			var filtered_profile
@@ -83,7 +87,7 @@ func _handle_get_profiles(peer_id: int, payload: Dictionary):
 			
 			profiles_data[id] = filtered_profile
 
-	server.send_response(peer_id, "GET_PROFILES_RESULT", {"success": true, "profiles": profiles_data})
+	BackendServer.send_response(peer_id, "GET_PROFILES_RESULT", {"success": true, "profiles": profiles_data})
 
 func _filter_profile(full_profile: Dictionary, allowed_fields: Array) -> Dictionary:
 	var filtered_dict = {}
@@ -93,7 +97,7 @@ func _filter_profile(full_profile: Dictionary, allowed_fields: Array) -> Diction
 	return filtered_dict
 
 func _handle_profile_update(peer_id: int, payload: Dictionary):
-	var user_id = server.authenticated_peers[peer_id].user_id
+	var user_id = BackendServer.authenticated_peers[peer_id].user_id
 	var user_key = "user:" + str(user_id)
 	
 	var fields_to_update = {}
@@ -110,7 +114,7 @@ func _handle_profile_update(peer_id: int, payload: Dictionary):
 	
 	if not invalid_fields.is_empty():
 		print("SERVER: Peer ", peer_id, " ha tentato di modificare campi non permessi: ", invalid_fields)
-		server.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
+		BackendServer.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
 			"success": false,
 			"message": "Tentativo di modificare campi non permessi."
 		})
@@ -118,33 +122,33 @@ func _handle_profile_update(peer_id: int, payload: Dictionary):
 
 	if fields_to_update.is_empty():
 		# Nessun campo valido da aggiornare
-		server.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
+		BackendServer.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
 			"success": false,
 			"message": "Nessun campo valido fornito per l'aggiornamento."
 		})
 		return
 
 	# Aggiorna i campi in Redis
-	var success = rc.hset_multiple_values(user_key, fields_to_update)
+	var success = BackendServer.redis_client.hset_multiple_values(user_key, fields_to_update)
 	
 	if success:
-		server.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
+		BackendServer.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
 			"success": true,
 			"updated_fields": fields_to_update
 		})
 	else:
-		server.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
+		BackendServer.send_response(peer_id, "PROFILE_UPDATE_RESULT", {
 			"success": false,
 			"message": "Errore durante il salvataggio dei dati."
 		})
 
 
 func _handle_achievement_unlock(peer_id: int, payload: Dictionary):
-	var user_id = server.authenticated_peers[peer_id].user_id
+	var user_id = BackendServer.authenticated_peers[peer_id].user_id
 	var achievement_id = payload.get("id", "")
 	
 	if achievement_id.is_empty():
-		server.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
+		BackendServer.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
 			"success": false,
 			"message": "ID achievement non valido."
 		})
@@ -152,7 +156,7 @@ func _handle_achievement_unlock(peer_id: int, payload: Dictionary):
 
 	# --- Logica di Validazione del Server ---
 	if not _can_unlock_achievement(user_id, achievement_id):
-		server.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
+		BackendServer.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
 			"success": false,
 			"message": "Requisiti non soddisfatti."
 		})
@@ -161,18 +165,18 @@ func _handle_achievement_unlock(peer_id: int, payload: Dictionary):
 	var achievements_key = "achievements:" + str(user_id)
 	
 	# Aggiungi l'achievement al SET dell'utente
-	var success = rc.sadd_values(achievements_key, [achievement_id])
+	var success = BackendServer.redis_client.sadd_values(achievements_key, [achievement_id])
 	
 	if success:
 		# Potremmo voler controllare se l'elemento è stato effettivamente aggiunto
 		# (SADD restituisce il numero di elementi aggiunti).
 		# Se il giocatore lo aveva già, non è un errore.
-		server.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
+		BackendServer.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
 			"success": true,
 			"id": achievement_id
 		})
 	else:
-		server.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
+		BackendServer.send_response(peer_id, "ACHIEVEMENT_UNLOCKED_RESULT", {
 			"success": false,
 			"message": "Errore durante il salvataggio dell'achievement."
 		})

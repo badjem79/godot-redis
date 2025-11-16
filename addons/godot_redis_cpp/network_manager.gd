@@ -1,5 +1,6 @@
-class_name NetworkManager
 extends Node
+
+@export var server_url = "ws://127.0.0.1:8888" # Sostituire con wss:// e configurare Caddy/TLS per la produzione
 
 # --- Segnali per i Moduli (es. LoginController) ---
 signal connection_established
@@ -9,7 +10,6 @@ signal connection_closed
 # --- Riferimenti e Stato ---
 var websocket: WebSocketClient = WebSocketClient.new() # Istanza del nostro client WebSocket
 var ws_connected = false
-var server_url = "ws://127.0.0.1:8888" # Sostituire con wss:// e configurare Caddy/TLS per la produzione
 var session_token = ""
 var user_data = {}
 
@@ -18,7 +18,6 @@ var message_handlers = {}
 
 
 func _ready():
-
 	get_parent().add_child.call_deferred(websocket)
 	
 	# 1. In produzione, qui configureresti il TLS per WSS
@@ -30,13 +29,8 @@ func _ready():
 	websocket.connection_closed.connect(_on_connection_closed)
 	websocket.message_received.connect(_on_message_received)
 	
-	# 3. Registra i moduli figli (LoginController, etc.)
-	for child in get_children():
-		if child.has_method("register_self_with_network_manager"):
-			child.register_self_with_network_manager()
-	
-	# 4. Avvia la connessione
-	connect_to_server()
+	# 4. Start connection manually
+	# connect_to_server()
 
 
 func connect_to_server():
@@ -98,3 +92,8 @@ func register_handler(msg_type: String, handler_callable: Callable):
 		printerr("ATTENZIONE: Handler duplicato per '", msg_type, "' sovrascritto.")
 	message_handlers[msg_type] = handler_callable
 	print("NetworkManager: Registrato handler per '", msg_type, "'")
+
+func unregister_handler(msg_type: String):
+	if message_handlers.has(msg_type):
+		message_handlers.erase(msg_type)
+		print("NetworkManager: De-registrato handler per '", msg_type, "'")

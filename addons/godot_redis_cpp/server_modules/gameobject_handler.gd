@@ -2,11 +2,15 @@
 class_name GameObjectHandler
 extends Node
 
-@onready var server = get_parent()
-@onready var rc: RedisClient = server.redis_client
-
 enum ReadPerm {NONE = 0, OWNER = 1, PUBLIC = 2, CUSTOM = -1}
 enum WritePerm {NONE = 0, OWNER = 1, CUSTOM = -1}
+
+func _ready():
+	# Registra questo gestore con il server autoload
+	BackendServer.register_handler(self)
+
+func _exit_tree():
+	BackendServer.unregister_handler(self)
 
 func get_handled_message_types() -> Array[String]:
 	return [
@@ -16,7 +20,7 @@ func get_handled_message_types() -> Array[String]:
 	]
 
 func handle_message(peer_id: int, msg_type: String, payload: Dictionary, token: String):
-	var user_id = server.authenticated_peers[peer_id].user_id
+	var user_id = BackendServer.authenticated_peers[peer_id].user_id
 
 	match msg_type:
 		"GAMEOBJECT_CREATE": _handle_create(peer_id, user_id, payload)
@@ -39,7 +43,7 @@ func _can_read(user_id: int, object_key: String, object_data: Dictionary) -> boo
 		return true
 	if perm == ReadPerm.CUSTOM:
 		# Controlla se l'utente è nella lista ACL di lettura
-		return rc.sismember(object_key + ":read_acl", str(user_id))
+		return BackendServer.redis_client.sismember(object_key + ":read_acl", str(user_id))
 		
 	return false
 
@@ -51,7 +55,7 @@ func _can_write(user_id: int, object_key: String, object_data: Dictionary) -> bo
 		return true
 	if perm == WritePerm.CUSTOM:
 		# Controlla se l'utente è nella lista ACL di scrittura
-		return rc.sismember(object_key + ":write_acl", str(user_id))
+		return BackendServer.redis_client.sismember(object_key + ":write_acl", str(user_id))
 		
 	return false
 
@@ -62,7 +66,7 @@ func _handle_get(peer_id: int, user_id: int, payload: Dictionary):
 	var results = {}
 
 	for key in keys:
-		var object_data = rc.hget_all_values(key)
+		var object_data = BackendServer.redis_client.hget_all_values(key)
 		if not object_data.is_empty():
 			# Passiamo anche la chiave per il controllo ACL
 			if _can_read(user_id, key, object_data):
@@ -70,7 +74,7 @@ func _handle_get(peer_id: int, user_id: int, payload: Dictionary):
 			else:
 				results[key] = {"error": "Accesso in lettura negato"}
 	
-	server.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": results})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": results})
 
 func _handle_get_mine(peer_id: int, user_id: int, payload: Dictionary):
 	var type_filter = payload.get("type", "")
@@ -84,22 +88,22 @@ func _handle_get_mine(peer_id: int, user_id: int, payload: Dictionary):
 		index_key = "user:%s:gameobjects" % user_id
 
 	# 1. Recupera tutte le chiavi degli oggetti dall'indice
-	var object_keys = rc.smembers_keys(index_key)
+	var object_keys = BackendServer.redis_client.smembers_keys(index_key)
 	
 	if object_keys.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": {}})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": {}})
 		return
 		
 	# 2. Recupera tutti gli HASH corrispondenti
 	# (Qui una pipeline sarebbe ideale, ma usiamo un ciclo per ora)
 	var objects_data = {}
 	for key in object_keys:
-		objects_data[key] = rc.hget_all_values(key)
+		objects_data[key] = BackendServer.redis_client.hget_all_values(key)
 		
 	# Non serve controllare i permessi, perché stiamo cercando
 	# gli oggetti del richiedente stesso.
 	
-	server.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": objects_data})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": objects_data})
 	
 func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
 	var type = payload.get("type")
@@ -108,11 +112,11 @@ func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
 
 	# Validazione di base
 	if not type or type.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Tipo di oggetto non specificato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Tipo di oggetto non specificato."})
 		return
 
 	# Genera un nuovo ID per questo tipo di oggetto
-	var new_id = rc.increment_value("gameobject:counter:" + type)
+	var new_id = BackendServer.redis_client.increment_value("gameobject:counter:" + type)
 	var key = "gameobject:%s:%s" % [type, new_id]
 
 	# Prepara l'HASH con i metadati fondamentali
@@ -132,39 +136,39 @@ func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
 
 	# Usiamo una transazione per assicurare che l'oggetto e i suoi indici
 	# vengano creati in modo atomico.
-	rc.begin_transaction()
+	BackendServer.redis_client.begin_transaction()
 
 	# 1. Crea l'HASH dell'oggetto
-	rc.hset_multiple_values(key, object_data)
+	BackendServer.redis_client.hset_multiple_values(key, object_data)
 	
 	# 2. Aggiungi l'oggetto all'indice principale del proprietario
-	rc.sadd_values("user:%s:gameobjects" % user_id, [key])
+	BackendServer.redis_client.sadd_values("user:%s:gameobjects" % user_id, [key])
 
 	# 3. Aggiungi l'oggetto all'indice specifico per tipo del proprietario
-	rc.sadd_values("user:%s:gameobjects:%s" % [user_id, type], [key])
+	BackendServer.redis_client.sadd_values("user:%s:gameobjects:%s" % [user_id, type], [key])
 
 	# 4. Se ha un genitore, aggiungilo al set dei figli del genitore
 	if not parent_key.is_empty():
-		rc.sadd_values(parent_key + ":children", [key])
+		BackendServer.redis_client.sadd_values(parent_key + ":children", [key])
 	
-	var result = rc.commit_transaction()
+	var result = BackendServer.redis_client.commit_transaction()
 
 	if result.get("success"):
-		server.send_response(peer_id, "GAMEOBJECT_CREATE_RESULT", {"success": true, "object_data": object_data})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_CREATE_RESULT", {"success": true, "object_data": object_data})
 	else:
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Fallimento nella creazione dell'oggetto (transazione)."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Fallimento nella creazione dell'oggetto (transazione)."})
 
 func _handle_update(peer_id: int, user_id: int, payload: Dictionary):
 	var key = payload.get("key")
 	var data_to_update = payload.get("data", {})
 	
-	var object_data = rc.hget_all_values(key)
+	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Oggetto non trovato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Oggetto non trovato."})
 		return
 		
 	if not _can_write(user_id, key, object_data):
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Permesso di scrittura negato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Permesso di scrittura negato."})
 		return
 		
 	# Filtra per evitare di sovrascrivere metadati fondamentali
@@ -176,17 +180,17 @@ func _handle_update(peer_id: int, user_id: int, payload: Dictionary):
 			
 	if sanitized_data.is_empty(): return # Niente da aggiornare
 
-	rc.hset_multiple_values(key, sanitized_data)
+	BackendServer.redis_client.hset_multiple_values(key, sanitized_data)
 	
 	# Invia indietro l'oggetto aggiornato
-	var updated_data = rc.hget_all_values(key)
-	server.send_response(peer_id, "GAMEOBJECT_UPDATE_RESULT", {"success": true, "updated_data": updated_data})
+	var updated_data = BackendServer.redis_client.hget_all_values(key)
+	BackendServer.send_response(peer_id, "GAMEOBJECT_UPDATE_RESULT", {"success": true, "updated_data": updated_data})
 
 func _handle_delete(peer_id: int, user_id: int, payload: Dictionary):
 	var key = payload.get("key")
-	var object_data = rc.hget_all_values(key)
+	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", {"success": true, "key": key})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", {"success": true, "key": key})
 		return # Se non esiste, va bene così
 	
 	var owner_id = int(object_data.get("owner_id", -1))
@@ -195,30 +199,30 @@ func _handle_delete(peer_id: int, user_id: int, payload: Dictionary):
 
 	# Solo il proprietario può cancellare
 	if owner_id != user_id:
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può cancellare l'oggetto."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può cancellare l'oggetto."})
 		return
 
 	# --- AGGIORNAMENTO DEGLI INDICI ---
-	rc.begin_transaction()
+	BackendServer.redis_client.begin_transaction()
 
 	# 1. Rimuovi l'oggetto dall'indice principale del proprietario
-	rc.srem_values("user:%s:gameobjects" % owner_id, [key])
+	BackendServer.redis_client.srem_values("user:%s:gameobjects" % owner_id, [key])
 	
 	# 2. Rimuovi l'oggetto dall'indice specifico per tipo
-	rc.srem_values("user:%s:gameobjects:%s" % [owner_id, type], [key])
+	BackendServer.redis_client.srem_values("user:%s:gameobjects:%s" % [owner_id, type], [key])
 		
 	# 3. Rimuovi l'oggetto dal set di figli del suo genitore
 	if not parent_key.is_empty():
-		rc.srem_values(parent_key + ":children", [key])
+		BackendServer.redis_client.srem_values(parent_key + ":children", [key])
 		
 	# 4. Cancella l'HASH principale e tutti i suoi set associati (children, ACLs)
 	# NOTA: Per cancellare i figli ricorsivamente servirebbe una logica più complessa
-	rc.del_keys([key, key + ":children", key + ":read_acl", key + ":write_acl"])
+	BackendServer.redis_client.del_keys([key, key + ":children", key + ":read_acl", key + ":write_acl"])
 
-	var result = rc.commit_transaction()
+	var result = BackendServer.redis_client.commit_transaction()
 	# --- FINE AGGIORNAMENTO INDICI ---
 	
-	server.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", {"success": true, "key": key})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", {"success": true, "key": key})
 
 # --- NUOVI GESTORI PER LE ACL ---
 
@@ -228,16 +232,16 @@ func _handle_acl_add(peer_id: int, user_id: int, payload: Dictionary):
 	var target_user_ids = payload.get("user_ids", []) # Array di ID da aggiungere
 
 	if not (acl_type in ["read", "write"]) or target_user_ids.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Payload ACL non valido."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Payload ACL non valido."})
 		return
 		
-	var object_data = rc.hget_all_values(key)
+	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty(): # ... (errore oggetto non trovato) ...
 		return
 		
 	# Solo il PROPRIETARIO può modificare le ACL
 	if int(object_data.get("owner_id", -1)) != user_id:
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può modificare le ACL."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può modificare le ACL."})
 		return
 
 	var acl_key = "%s:%s_acl" % [key, acl_type]
@@ -247,9 +251,9 @@ func _handle_acl_add(peer_id: int, user_id: int, payload: Dictionary):
 	for id in target_user_ids:
 		members_to_add.append(str(id))
 
-	rc.sadd_values(acl_key, members_to_add)
+	BackendServer.redis_client.sadd_values(acl_key, members_to_add)
 
-	server.send_response(peer_id, "GAMEOBJECT_ACL_ADD_RESULT", {
+	BackendServer.send_response(peer_id, "GAMEOBJECT_ACL_ADD_RESULT", {
 		"success": true,
 		"key": key,
 		"acl_type": acl_type,
@@ -262,17 +266,17 @@ func _handle_acl_remove(peer_id: int, user_id: int, payload: Dictionary):
 	var target_user_ids = payload.get("user_ids", [])
 
 	if not (acl_type in ["read", "write"]) or target_user_ids.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Payload ACL non valido."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Payload ACL non valido."})
 		return
 		
-	var object_data = rc.hget_all_values(key)
+	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty():
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Oggetto non trovato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Oggetto non trovato."})
 		return
 
 	# Solo il proprietario può modificare le ACL
 	if int(object_data.get("owner_id", -1)) != user_id:
-		server.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può modificare le ACL."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può modificare le ACL."})
 		return
 
 	var acl_key = "%s:%s_acl" % [key, acl_type]
@@ -281,9 +285,9 @@ func _handle_acl_remove(peer_id: int, user_id: int, payload: Dictionary):
 	for id in target_user_ids:
 		members_to_remove.append(str(id))
 
-	rc.srem_values(acl_key, members_to_remove)
+	BackendServer.redis_client.srem_values(acl_key, members_to_remove)
 
-	server.send_response(peer_id, "GAMEOBJECT_ACL_REMOVE_RESULT", {
+	BackendServer.send_response(peer_id, "GAMEOBJECT_ACL_REMOVE_RESULT", {
 		"success": true,
 		"key": key,
 		"acl_type": acl_type,

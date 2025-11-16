@@ -11,13 +11,19 @@ config_version=5
 [application]
 
 config/name="cms-redis"
-run/main_scene="uid://dk8pqyt60mi5k"
+run/main_scene="uid://bqce2y0cq7g0f"
 config/features=PackedStringArray("4.5", "Forward Plus")
+boot_splash/image="uid://donl56laixd1q"
 config/icon="res://icon.svg"
 
 [audio]
 
 driver/driver="Dummy"
+
+[autoload]
+
+BackendServer="*res://autoload_server.tscn"
+NetworkManager="*res://autoload_client.tscn"
 
 [editor_plugins]
 

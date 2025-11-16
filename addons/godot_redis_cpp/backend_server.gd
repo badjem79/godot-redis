@@ -1,4 +1,3 @@
-class_name BackendServer
 extends Node
 
 var web_server = WebSocketServer.new()
@@ -24,30 +23,50 @@ func _ready():
 	web_server.client_connected.connect(_on_client_connected)
 	web_server.client_disconnected.connect(_on_client_disconnected)
 	web_server.message_received.connect(_on_message_received)
-
-	# 2. Avvia il server
+	
+func start_server():
+	
+	# 1. Avvia la connessione con Redis
+	redis_client.connect_to_redis()
+	
+	# 2. Avvia il server WEB
 	var err = web_server.listen(WEB_PORT)
 	if err == OK:
 		print("BackendServer: in ascolto sulla porta ", WEB_PORT)
 	else:
-		printerr("BackendServer: Impossibile avviare il server WebSocket.")
+		printerr("BackendServer: Impossibile avviare il server WebSocket.", err)
 		get_tree().quit()
-	
-	# 3. Registra i moduli figli (come LoginHandler, etc.)
-	_register_handlers()
 
+func register_handler(handler_node: Node):
+	"""
+	Permette a un nodo gestore (es. LoginHandler) di registrarsi con il server.
+	Questa funzione viene chiamata dal gestore stesso al suo _ready().
+	"""
+	if not handler_node.has_method("get_handled_message_types"):
+		printerr("BackendServer: Il nodo '", handler_node.name, "' ha tentato di registrarsi ma non ha il metodo get_handled_message_types().")
+		return
+		
+	var types = handler_node.get_handled_message_types()
+	for msg_type in types:
+		if message_handlers.has(msg_type):
+			printerr("ATTENZIONE: Handler duplicato per '", msg_type, "' sovrascritto da ", handler_node.name)
+		message_handlers[msg_type] = handler_node
+		print("BackendServer: Registrato handler per '", msg_type, "': ", handler_node.name)
 
-func _register_handlers():
-	"""Scansiona i nodi figli e li registra come gestori di messaggi."""
-	for child in get_children():
-		if child.has_method("get_handled_message_types"):
-			var types = child.get_handled_message_types()
-			for msg_type in types:
-				if message_handlers.has(msg_type):
-					printerr("ATTENZIONE: Handler duplicato per '", msg_type, "' sovrascritto da ", child.name)
-				else:
-					print("Registrato handler per '", msg_type, "': ", child.name)
-					message_handlers[msg_type] = child
+func unregister_handler(handler_node: Node):
+	"""
+	Rimuove un gestore dal dizionario. Chiamato da un gestore nel suo _exit_tree().
+	"""
+	# Usiamo un array temporaneo per le chiavi da rimuovere per evitare di modificare
+	# il dizionario mentre lo stiamo iterando.
+	var keys_to_remove = []
+	for msg_type in message_handlers:
+		if message_handlers[msg_type] == handler_node:
+			keys_to_remove.append(msg_type)
+			
+	for msg_type in keys_to_remove:
+		message_handlers.erase(msg_type)
+		print("BackendServer: De-registrato handler per '", msg_type, "' dal nodo ", handler_node.name)
 
 
 # --- Gestori di Eventi WebSocket ---

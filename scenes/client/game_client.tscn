@@ -1,26 +1,24 @@
 [gd_scene load_steps=4 format=3 uid="uid://bv4pk83apnmrd"]
 
-[ext_resource type="Script" uid="uid://6ay5uegyapjr" path="res://addons/godot_redis_cpp/network_manager.gd" id="2_xwhb6"]
-[ext_resource type="Script" uid="uid://dgpa12y2hlpdb" path="res://addons/godot_redis_cpp/client_modules/login_controller.gd" id="3_hnckm"]
-[ext_resource type="Script" uid="uid://b4p5j446f1lvt" path="res://access_panel.gd" id="6_nqir7"]
+[ext_resource type="Script" uid="uid://dvc72yh48hhms" path="res://scenes/client/game_client.gd" id="1_8gxen"]
+[ext_resource type="Script" uid="uid://dgpa12y2hlpdb" path="res://addons/godot_redis_cpp/client_modules/login_controller.gd" id="1_b4d6q"]
+[ext_resource type="Script" uid="uid://b4p5j446f1lvt" path="res://scenes/client/access_panel.gd" id="2_8gxen"]
 
-[node name="GameNode" type="Node"]
+[node name="GameClient" type="Node"]
+script = ExtResource("1_8gxen")
 
 [node name="RedisStack" type="Node" parent="."]
 
-[node name="NetworkManager" type="Node" parent="RedisStack"]
-script = ExtResource("2_xwhb6")
-
-[node name="LoginController" type="Node" parent="RedisStack/NetworkManager"]
-script = ExtResource("3_hnckm")
+[node name="LoginController" type="Node" parent="RedisStack"]
+script = ExtResource("1_b4d6q")
 
 [node name="AccessPanel" type="Control" parent="." node_paths=PackedStringArray("login_controller")]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 1154.0
 offset_bottom = 647.0
-script = ExtResource("6_nqir7")
-login_controller = NodePath("../RedisStack/NetworkManager/LoginController")
+script = ExtResource("2_8gxen")
+login_controller = NodePath("../RedisStack/LoginController")
 
 [node name="PanelRegister" type="Panel" parent="AccessPanel"]
 layout_mode = 0

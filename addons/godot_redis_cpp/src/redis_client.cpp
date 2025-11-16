@@ -22,6 +22,11 @@ void RedisClient::_bind_methods() {
     //    Aggiungiamo un HINT per limitare il range di porte valide (es. 1-65535)
     ADD_PROPERTY(PropertyInfo(Variant::INT, "port", PROPERTY_HINT_RANGE, "1,65535,1"), "set_port", "get_port");
 
+    // 1. Bind dei metodi getter e setter per 'auto_connect'
+    ClassDB::bind_method(D_METHOD("get_auto_connect"), &RedisClient::get_auto_connect);
+    ClassDB::bind_method(D_METHOD("set_auto_connect", "p_auto_connect"), &RedisClient::set_auto_connect);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_connect"), "set_auto_connect", "get_auto_connect");
+
     // --- FINE REGISTRAZIONE PROPRIETÀ ---
 
     // Metodi esposti a GDScript
@@ -72,8 +77,10 @@ void RedisClient::_bind_methods() {
 }
 
 void RedisClient::_ready() {
-    UtilityFunctions::print("[Redis C++] Inizializzazione, tentativo di connessione...");
-    connect_to_redis();
+    if (auto_connect) {
+        UtilityFunctions::print("[Redis C++] Inizializzazione, tentativo di connessione automatica...");
+        connect_to_redis();
+    }
 }
 
 void RedisClient::_exit_tree() {
@@ -96,6 +103,12 @@ void RedisClient::set_port(int p_port) {
 }
 int RedisClient::get_port() const {
     return port;
+}
+void RedisClient::set_auto_connect(bool p_auto_connect) {
+    auto_connect = p_auto_connect;
+}
+bool RedisClient::get_auto_connect() const {
+    return auto_connect;
 }
 // --- FINE IMPLEMENTAZIONE GETTER/SETTER ---
 

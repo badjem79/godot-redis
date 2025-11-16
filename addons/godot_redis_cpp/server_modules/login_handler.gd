@@ -1,7 +1,12 @@
 class_name LoginHandler
 extends Node
 
-@onready var server = get_parent()
+func _ready():
+	# Registra questo gestore con il server autoload
+	BackendServer.register_handler(self)
+
+func _exit_tree():
+	BackendServer.unregister_handler(self)
 
 func get_handled_message_types() -> Array[String]:
 	return ["REGISTER", "LOGIN"]
@@ -23,14 +28,14 @@ func _handle_register(peer_id: int, payload: Dictionary):
 	# Validazione base dell'input
 	if username.length() < 3 or password.length() < 6:
 		var reason = "Username deve avere almeno 3 caratteri e password almeno 6."
-		server.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": reason})
+		BackendServer.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": reason})
 		return
 
 	# Accedi al RedisClient tramite la variabile esportata del genitore
-	var redis_client: RedisClient = server.redis_client
+	var redis_client: RedisClient = BackendServer.redis_client
 	if not redis_client:
 		printerr("LoginHandler: RedisClient non è disponibile sul server!")
-		server.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": "Errore interno del server."})
+		BackendServer.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": "Errore interno del server."})
 		return
 		
 	# --- Logica Atomica di Registrazione ---
@@ -42,7 +47,7 @@ func _handle_register(peer_id: int, payload: Dictionary):
 	var existing_id = redis_client.get_value(username_key)
 
 	if not existing_id.is_empty():
-		server.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": "Username già in uso."})
+		BackendServer.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": "Username già in uso."})
 		return
 
 	# Genera un nuovo ID utente in modo atomico
@@ -67,11 +72,11 @@ func _handle_register(peer_id: int, payload: Dictionary):
 
 	if success_hset and success_set:
 		print("SERVER: Utente '", username, "' registrato con ID ", new_user_id)
-		server.send_response(peer_id, "REGISTER_RESULT", {"success": true, "message": "Registrazione completata!"})
+		BackendServer.send_response(peer_id, "REGISTER_RESULT", {"success": true, "message": "Registrazione completata!"})
 	else:
 		# Potremmo voler implementare una logica di rollback qui
 		printerr("SERVER: Fallimento nel salvare i dati per l'utente '", username, "' in Redis.")
-		server.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": "Errore interno del server."})
+		BackendServer.send_response(peer_id, "REGISTER_RESULT", {"success": false, "message": "Errore interno del server."})
 
 
 func _handle_login(peer_id: int, payload: Dictionary):
@@ -80,13 +85,13 @@ func _handle_login(peer_id: int, payload: Dictionary):
 	var password = payload.get("password", "")
 	
 	if username.is_empty() or password.is_empty():
-		server.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Credenziali non valide."})
+		BackendServer.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Credenziali non valide."})
 		return
 
-	var redis_client: RedisClient = server.redis_client
+	var redis_client: RedisClient = BackendServer.redis_client
 	if not redis_client:
 		printerr("LoginHandler: RedisClient non è disponibile sul server!")
-		server.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Errore interno del server."})
+		BackendServer.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Errore interno del server."})
 		return
 
 	# 1. Trova l'ID utente dall'username normalizzato
@@ -94,7 +99,7 @@ func _handle_login(peer_id: int, payload: Dictionary):
 	var user_id_str = redis_client.get_value(username_key)
 	
 	if user_id_str.is_empty():
-		server.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Credenziali non valide."})
+		BackendServer.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Credenziali non valide."})
 		return
 		
 	var user_key = "user:" + user_id_str
@@ -111,7 +116,7 @@ func _handle_login(peer_id: int, payload: Dictionary):
 		var token = str(randi()) + str(Time.get_ticks_usec())
 		
 		# Salva la sessione in Redis (peer_id -> user_id, token, etc.)
-		server.authenticate_peer(peer_id, int(user_id_str), token)
+		BackendServer.authenticate_peer(peer_id, int(user_id_str), token)
 
 		# Recupera tutti i dati utente da inviare al client
 		var user_data_for_client = redis_client.hget_all_values(user_key)
@@ -124,8 +129,8 @@ func _handle_login(peer_id: int, payload: Dictionary):
 			"token": token,
 			"user_data": user_data_for_client
 		}
-		server.send_response(peer_id, "LOGIN_RESULT", response_payload)
+		BackendServer.send_response(peer_id, "LOGIN_RESULT", response_payload)
 		print("SERVER: Login riuscito per '", username, "' (Peer ID: ", peer_id, ")")
 	else:
 		# Password non corretta
-		server.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Credenziali non valide."})
+		BackendServer.send_response(peer_id, "LOGIN_RESULT", {"success": false, "message": "Credenziali non valide."})

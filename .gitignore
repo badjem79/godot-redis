@@ -35,3 +35,5 @@ project.godot.local
 *.obj
 *.dll
 *.a
+addons/godot_redis_cpp/src/register_types.windows.template_debug.x86_64.obj
+addons/godot_redis_cpp/src/redis_client.windows.template_debug.x86_64.obj

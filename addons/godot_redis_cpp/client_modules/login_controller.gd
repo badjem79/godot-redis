@@ -7,12 +7,16 @@ signal registration_failed(reason)
 signal login_success(user_data)
 signal login_failed(reason)
 
-# Riferimento al genitore (NetworkManager) per comodità
-@onready var network_manager = get_parent()
+var _registered_handlers = ["REGISTER_RESULT", "LOGIN_RESULT"]
 
 func _ready() -> void:
-	network_manager.register_handler("REGISTER_RESULT", Callable(self, "_on_register_result"))
-	network_manager.register_handler("LOGIN_RESULT", Callable(self, "_on_login_result"))
+	for msg_type in _registered_handlers:
+		NetworkManager.register_handler(msg_type, Callable(self, "_on_" + msg_type.to_lower()))
+
+func _exit_tree():
+	# De-registra tutti i gestori quando il nodo esce dalla scena
+	for msg_type in _registered_handlers:
+		NetworkManager.unregister_handler(msg_type)
 
 # --- API Pubblica di questo Modulo (chiamata dall'UI) ---
 
@@ -23,7 +27,7 @@ func attempt_login(username: String, password: String):
 		return
 	
 	var payload = {"username": username, "password": password}
-	network_manager.send_message("LOGIN", payload)
+	NetworkManager.send_message("LOGIN", payload)
 
 func attempt_register(username: String, password: String):
 	"""Invia una richiesta di registrazione al server."""
@@ -32,12 +36,12 @@ func attempt_register(username: String, password: String):
 		return
 		
 	var payload = {"username": username, "password": password}
-	network_manager.send_message("REGISTER", payload)
+	NetworkManager.send_message("REGISTER", payload)
 
 # --- Gestori delle Risposte dal Server (chiamati dal NetworkManager) ---
 
 # Questo metodo viene eseguito quando il NetworkManager riceve un messaggio "LOGIN_RESULT"
-func _on_login_result(payload: Dictionary):
+func _on_login_result(payload: Dictionary): # Corrisponde a "LOGIN_RESULT"
 	if payload.get("success"):
 		var received_token = payload.get("token", "")
 		var received_user_data = payload.get("user_data", {})
@@ -48,15 +52,15 @@ func _on_login_result(payload: Dictionary):
 			return
 		
 		# Memorizza il token e i dati utente nel NetworkManager per l'uso globale
-		network_manager.session_token = received_token
-		network_manager.user_data = received_user_data
+		NetworkManager.session_token = received_token
+		NetworkManager.user_data = received_user_data
 		
 		emit_signal("login_success", received_user_data)
 	else:
 		emit_signal("login_failed", payload.get("message", "Credenziali non valide o errore del server."))
 
 # Questo metodo viene eseguito quando il NetworkManager riceve un messaggio "REGISTER_RESULT"
-func _on_register_result(payload: Dictionary):
+func _on_register_result(payload: Dictionary): # Corrisponde a "REGISTER_RESULT"
 	if payload.get("success"):
 		emit_signal("registration_success")
 	else:

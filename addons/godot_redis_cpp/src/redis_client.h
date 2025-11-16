@@ -22,6 +22,7 @@ namespace godot {
 
         String host = "127.0.0.1";
         int port = 6379;
+        bool auto_connect = true;
 
     protected:
         static void _bind_methods();
@@ -39,6 +40,9 @@ namespace godot {
 
         void set_port(int p_port);
         int get_port() const;
+
+        void set_auto_connect(bool p_auto_connect);
+        bool get_auto_connect() const;
         // --- FINE NUOVI METODI ---
 
         void connect_to_redis();

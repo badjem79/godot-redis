@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dk8pqyt60mi5k"]
+
+[ext_resource type="Script" uid="uid://vtxo0mo5jfml" path="res://scenes/redis_client_unit_tests.gd" id="1_86x7v"]
+
+[node name="RedisClientUnitTests" type="Node"]
+script = ExtResource("1_86x7v")

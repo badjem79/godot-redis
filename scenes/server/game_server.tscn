@@ -1,0 +1,58 @@
+[gd_scene load_steps=4 format=3 uid="uid://2filleyjash0"]
+
+[ext_resource type="Script" uid="uid://bcor1juy76ms8" path="res://addons/godot_redis_cpp/server_modules/login_handler.gd" id="1_dadn3"]
+[ext_resource type="Script" uid="uid://bhsguov4gk0hs" path="res://scenes/server/game_server.gd" id="1_pmcf8"]
+[ext_resource type="Script" uid="uid://byghqd21xppbw" path="res://scenes/server/server_panel.gd" id="2_jb2ot"]
+
+[node name="GameServer" type="Node"]
+script = ExtResource("1_pmcf8")
+
+[node name="LoginHandler" type="Node" parent="."]
+script = ExtResource("1_dadn3")
+metadata/_custom_type_script = "uid://bcor1juy76ms8"
+
+[node name="ServerPanel" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1154.0
+offset_bottom = 647.0
+script = ExtResource("2_jb2ot")
+
+[node name="Panel" type="Panel" parent="ServerPanel"]
+layout_mode = 0
+offset_left = 320.0
+offset_top = 141.0
+offset_right = 861.0
+offset_bottom = 490.0
+
+[node name="Label" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 85.0
+offset_top = 114.0
+offset_right = 266.0
+offset_bottom = 137.0
+text = "Server listening at port:"
+
+[node name="Label2" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 282.0
+offset_top = 114.0
+offset_right = 347.0
+offset_bottom = 137.0
+text = "1234"
+
+[node name="Label3" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 84.0
+offset_top = 152.0
+offset_right = 265.0
+offset_bottom = 175.0
+text = "REDIS CONNETION:"
+
+[node name="Label4" type="Label" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 281.0
+offset_top = 152.0
+offset_right = 346.0
+offset_bottom = 175.0
+text = "ko"

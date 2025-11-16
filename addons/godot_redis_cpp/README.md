@@ -22,6 +22,11 @@ Additionally, this addon requires the following development libraries to be inst
 sudo apt-get update
 sudo apt-get install libhiredis-dev libuv1-dev libssl-dev
 ```
+**On Windows:**
+- **Visual Studio 2022** (or newer) with the "Desktop development with C++" workload.
+- **vcpkg (C++ Package Manager):** Follow the [official vcpkg guide](https://vcpkg.io/en/getting-started.html) to install it.
+- **Strawberry Perl:** Download and install from [strawberryperl.com](https://strawberryperl.com/). Ensure it's added to your system's PATH.
+- **NASM Assembler:** Download and install the `win64` installer from the [official NASM website](https://www.nasm.us/). Ensure it's added to your system's PATH.
 
 **On other systems, please install the equivalent packages.**
 
@@ -53,7 +58,23 @@ cd addons/godot_redis_cpp
 
 This will create the necessary symbolic links and configuration files inside the `redis-plus-plus` submodule.
 
-> **Note for Windows Users:** This is a Bash script. You can run it using Git Bash (which comes with Git for Windows) or the Windows Subsystem for Linux (WSL). Alternatively, you can inspect the script and perform the steps (`mklink` or file copies) manually.
+> **Note for Windows Users:** This is a Bash script that create sym-links to the required dependencies for Linux. You can copy this files manually for the Windows system.
+
+#### On Windows (Required)
+
+You must use `vcpkg` to install the C++ libraries required by this addon.
+
+First, set the `VCPKG_ROOT` environment variable to point to your `vcpkg` installation directory.
+
+Then, open a **Developer Command Prompt for VS** and run the following commands to install the necessary dependencies:
+
+```bash
+# Install the required libraries for the x64-windows target
+vcpkg install hiredis:x64-windows libuv:x64-windows openssl:x64-windows
+```
+
+> **Note:** The OpenSSL installation may take a significant amount of time. The successful installation of Perl and NASM is critical for this step to succeed.
+
 
 ### 3. Generate Godot-CPP Bindings
 
@@ -70,14 +91,19 @@ cd ..
 Now you can compile the GDExtension library.
 
 ```bash
-scons platform=linux # Or your target platform
+# On Linux:
+scons platform=linux
+
+# On Windows (from a Developer Command Prompt for VS):
+scons platform=windows
 ```
-The compiled library (e.g., `libgodot-redis.so`) will appear in the `addons/godot_redis_cpp/bin/` directory.
+
+The compiled library (e.g., `libgodot-redis.dll` or `libgodot-redis.so`) will appear in the `addons/godot_redis_cpp/bin/` directory.
+
+On windows you have to copy `hiredis.dll` from the vcpkg to the folder where `libgodot-redis.dll` is located
 
 ## Activation in Godot
 
 1. Open your Godot project.
 2. Go to **Project -> Project Settings -> Plugins**.
 3. Find **"Godot Redis"** in the list and set its status to **Active**.
-
-This will automatically add the `NetworkManager` and its controller modules to your project's Autoloads, making them ready to use.
