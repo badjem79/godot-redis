@@ -38,30 +38,29 @@ func create_object(type: String, data: Dictionary, parent_key: String = ""):
 		"data": data,
 		"parent": parent_key
 	}
-	NetworkManager.send_message("GAMEOBJECT_CREATE", payload)
+	NetworkManager.send_message("GAMEOBJECT_CREATE", payload, _on_gameobject_create_result)
 
 func get_objects(keys: Array):
 	"""Richiede i dati di uno o più GameObjects."""
 	if keys.is_empty(): return
-	NetworkManager.send_message("GAMEOBJECT_GET", {"keys": keys})
+	NetworkManager.send_message("GAMEOBJECT_GET", {"keys": keys}, _on_gameobject_get_result)
 	
 func get_my_objects(type_filter: String = ""):
 	"""
 	Richiede tutti i GameObject posseduti dall'utente corrente.
 	Se type_filter è specificato, richiede solo oggetti di quel tipo.
 	"""
-	NetworkManager.send_message("GAMEOBJECT_GET_MINE", {"type": type_filter})
+	NetworkManager.send_message("GAMEOBJECT_GET_MINE", {"type": type_filter}, _on_gameobject_get_result)
 
 func update_object(key: String, data: Dictionary):
 	"""Richiede l'aggiornamento dei dati di un GameObject esistente."""
 	if data.is_empty(): return
 	var payload = {"key": key, "data": data}
-	NetworkManager.send_message("GAMEOBJECT_UPDATE", payload)
+	NetworkManager.send_message("GAMEOBJECT_UPDATE", payload, _on_gameobject_update_result)
 	
 func delete_object(key: String):
 	"""Richiede la cancellazione di un GameObject."""
-	NetworkManager.send_message("GAMEOBJECT_DELETE", {"key": key})
-
+	NetworkManager.send_message("GAMEOBJECT_DELETE", {"key": key}, _on_gameobject_delete_result)
 func add_to_acl(object_key: String, acl_type: String, user_ids: Array):
 	"""
 	Aggiunge utenti a una lista di controllo accessi.
@@ -72,7 +71,7 @@ func add_to_acl(object_key: String, acl_type: String, user_ids: Array):
 		"acl_type": acl_type,
 		"user_ids": user_ids
 	}
-	NetworkManager.send_message("GAMEOBJECT_ACL_ADD", payload)
+	NetworkManager.send_message("GAMEOBJECT_ACL_ADD", payload, _on_gameobject_acl_add_result)
 
 func remove_from_acl(object_key: String, acl_type: String, user_ids: Array):
 	"""Rimuove utenti da una lista di controllo accessi."""
@@ -81,11 +80,11 @@ func remove_from_acl(object_key: String, acl_type: String, user_ids: Array):
 		"acl_type": acl_type,
 		"user_ids": user_ids
 	}
-	NetworkManager.send_message("GAMEOBJECT_ACL_REMOVE", payload)
+	NetworkManager.send_message("GAMEOBJECT_ACL_REMOVE", payload, _on_gameobject_acl_remove_result)
 
 # --- GESTORI DELLE RISPOSTE ---
 
-func _on_gameobject_reate_result(payload):
+func _on_gameobject_create_result(payload):
 	if payload.get("success"):
 		emit_signal("object_created", payload.get("object_data"))
 	else:

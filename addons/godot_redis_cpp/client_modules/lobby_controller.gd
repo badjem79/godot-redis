@@ -38,10 +38,10 @@ func request_lobby_list():
 
 func create_lobby(name: String, max_players: int, is_private: bool):
 	var payload = {"name": name, "max_players": max_players, "private": is_private}
-	NetworkManager.send_message("LOBBY_CREATE", payload)
+	NetworkManager.send_message("LOBBY_CREATE", payload, _on_lobby_list_update)
 
 func join_lobby(lobby_id: String):
-	NetworkManager.send_message("LOBBY_JOIN", {"id": lobby_id})
+	NetworkManager.send_message("LOBBY_JOIN", {"id": lobby_id}, _on_lobby_join_success)
 
 func leave_lobby():
 	NetworkManager.send_message("LOBBY_LEAVE", {})

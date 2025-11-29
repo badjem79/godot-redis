@@ -22,8 +22,8 @@ driver/driver="Dummy"
 
 [autoload]
 
-BackendServer="*res://autoload_server.tscn"
-NetworkManager="*res://autoload_client.tscn"
+BackendServer="*res://addons/godot_redis_cpp/autoload/autoload_server.tscn"
+NetworkManager="*res://addons/godot_redis_cpp/autoload/autoload_client.tscn"
 
 [editor_plugins]
 

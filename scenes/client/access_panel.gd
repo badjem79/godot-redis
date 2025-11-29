@@ -63,7 +63,9 @@ func _on_registration_failed(reason: String) -> void:
 
 func _on_login_success(user_data: Dictionary) -> void:
 	login_status_label.text = "Login riuscito! Benvenuto, " + user_data.get("username", "utente")
-	# Qui potresti nascondere questo pannello e mostrare il gioco/menu principale
+	
+	await get_tree().create_timer(2.0).timeout
+	get_tree().change_scene_to_file("res://scenes/client/main_menu.tscn")
 
 func _on_login_failed(reason: String) -> void:
 	login_status_label.text = "Login fallito: " + reason

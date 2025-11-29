@@ -1,0 +1,68 @@
+[gd_scene load_steps=4 format=3 uid="uid://dr7mxxbc5ebtm"]
+
+[ext_resource type="Script" uid="uid://btu0k63kooi6r" path="res://scenes/client/main_menu.gd" id="1_n8nhq"]
+[ext_resource type="Theme" uid="uid://bjy4pfwqpvo55" path="res://scenes/client/main_menu.tres" id="2_lfxps"]
+[ext_resource type="Script" uid="uid://dgpa12y2hlpdb" path="res://addons/godot_redis_cpp/client_modules/login_controller.gd" id="3_lfxps"]
+
+[node name="Menu" type="Node"]
+
+[node name="MainMenu" type="GridContainer" parent="." node_paths=PackedStringArray("login_controller")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 284.0
+offset_top = 200.0
+offset_right = -248.5
+offset_bottom = -147.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+columns = 2
+script = ExtResource("1_n8nhq")
+login_controller = NodePath("../LoginController")
+
+[node name="Profiles" type="Button" parent="MainMenu"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_lfxps")
+text = "Profiles"
+
+[node name="GameObjects" type="Button" parent="MainMenu"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_lfxps")
+text = "Game Objects
+"
+
+[node name="Lobby" type="Button" parent="MainMenu"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_lfxps")
+text = "Lobby"
+
+[node name="Logout" type="Button" parent="MainMenu"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_lfxps")
+text = "Logout"
+
+[node name="LoginController" type="Node" parent="."]
+script = ExtResource("3_lfxps")
+
+[node name="UserLabel" type="Label" parent="."]
+offset_right = 73.0
+offset_bottom = 25.0
+theme = ExtResource("2_lfxps")
+text = "USER:"
+
+[node name="UserName" type="Label" parent="UserLabel"]
+layout_mode = 0
+offset_left = 61.0
+offset_top = 1.0
+offset_right = 198.0
+offset_bottom = 24.0
+text = "not logged in..."

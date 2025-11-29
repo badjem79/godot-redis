@@ -25,7 +25,6 @@ func _ready():
 	web_server.message_received.connect(_on_message_received)
 	
 func start_server():
-	
 	# 1. Avvia la connessione con Redis
 	redis_client.connect_to_redis()
 	
@@ -90,10 +89,12 @@ func _on_message_received(peer_id: int, message: String):
 	"""
 	var data = JSON.parse_string(message)
 	if data == null:
+		send_response(peer_id, "ERROR", "", {"success": false, "message": "Messaggio non valido."})
 		printerr("BackendServer: Ricevuto JSON non valido dal peer ", peer_id)
 		return # Ignora pacchetti malformati
 	
 	var msg_type = data.get("type", "")
+	var req_id = data.get("request_id", "") # <-- Recupera l'ID
 	var payload = data.get("payload", {})
 	var token = data.get("token", "")
 
@@ -101,23 +102,23 @@ func _on_message_received(peer_id: int, message: String):
 	# Se il messaggio non è per l'autenticazione, il peer deve essere autenticato.
 	if not (msg_type in ["LOGIN", "REGISTER"]):
 		if not _is_peer_authenticated(peer_id, token):
-			send_response(peer_id, "ERROR", {"message": "Non autorizzato."})
+			send_response(peer_id, "ERROR", req_id, {"success": false, "message": "Non autorizzato."})
 			# Potremmo anche chiudere la connessione qui
 			return
 	
 	# --- Dispatching al Modulo Corretto ---
 	if message_handlers.has(msg_type):
 		var handler = message_handlers[msg_type]
-		handler.handle_message(peer_id, msg_type, payload, token)
+		handler.handle_message(peer_id, msg_type, req_id, payload, token)
 	else:
 		printerr("BackendServer: Nessun handler per il tipo '", msg_type, "' dal peer ", peer_id)
 
 
 # --- API per i Moduli Figli ---
 
-func send_response(peer_id: int, type: String, payload: Dictionary):
+func send_response(peer_id: int, type: String, req_id: String, payload: Dictionary):
 	"""Invia un messaggio JSON a un client specifico."""
-	var message = {"type": type, "payload": payload}
+	var message = {"type": type, "request_id": req_id, "payload": payload}
 	web_server.send(peer_id, JSON.stringify(message))
 
 func broadcast(type: String, payload: Dictionary, exclude_peer_id: int = 0):
@@ -134,6 +135,16 @@ func authenticate_peer(peer_id: int, user_id: int, token: String):
 	}
 	user_id_to_peer_id_map[user_id] = peer_id
 	print("SERVER: Peer ", peer_id, " autenticato come utente ", user_id)
+
+func deauthenticate_peer(peer_id: int):
+	"""Rimuove l'autenticazione di un peer."""
+	if authenticated_peers.has(peer_id):
+		var user_id = authenticated_peers[peer_id].user_id
+		authenticated_peers.erase(peer_id)
+		if user_id_to_peer_id_map.has(user_id):
+			user_id_to_peer_id_map.erase(user_id)
+		print("SERVER: Peer ", peer_id, " (Utente ", user_id, ") deautenticato.")
+
 
 func _is_peer_authenticated(peer_id: int, token: String) -> bool:
 	"""Verifica se un peer è autenticato e il suo token è valido."""

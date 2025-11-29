@@ -20,7 +20,7 @@ func get_handled_message_types() -> Array[String]:
 	]
 
 
-func handle_message(peer_id: int, msg_type: String, payload: Dictionary, token: String):
+func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, token: String):
 	var user_id = BackendServer.authenticated_peers[peer_id].user_id
 	
 	# Un giocatore non può fare operazioni sulla lobby se è già in una partita
@@ -28,24 +28,24 @@ func handle_message(peer_id: int, msg_type: String, payload: Dictionary, token: 
 	
 	match msg_type:
 		"LOBBY_GET_LIST":
-			_handle_get_list(peer_id)
+			_handle_get_list(peer_id, req_id)
 		"LOBBY_CREATE":
-			_handle_create(peer_id, user_id, payload)
+			_handle_create(peer_id, user_id, req_id, payload)
 		"LOBBY_JOIN":
-			_handle_join(peer_id, user_id, payload, current_lobby_id)
+			_handle_join(peer_id, user_id, req_id, payload, current_lobby_id)
 		"LOBBY_LEAVE":
-			_handle_leave(peer_id, user_id, current_lobby_id)
+			_handle_leave(peer_id, user_id, req_id, current_lobby_id)
 		"LOBBY_SET_READY":
-			_handle_set_ready(peer_id, user_id, current_lobby_id, payload)
+			_handle_set_ready(peer_id, user_id, req_id, current_lobby_id, payload)
 		"LOBBY_START_GAME":
-			_handle_start_game(peer_id, user_id, current_lobby_id)
+			_handle_start_game(peer_id, user_id, req_id, current_lobby_id)
 		"MATCHMAKING_JOIN_QUEUE":
-			_handle_join_queue(peer_id, user_id, payload)
+			_handle_join_queue(peer_id, user_id, req_id, payload)
 		"MATCHMAKING_LEAVE_QUEUE":
-			_handle_leave_queue(peer_id, user_id, payload)
+			_handle_leave_queue(peer_id, user_id, req_id,  payload)
 
 # --- Funzioni Helper ---
-func _handle_get_list(peer_id: int):
+func _handle_get_list(peer_id: int, req_id: String):
 	"""
 	Recupera la lista delle lobby pubbliche e la invia al client.
 	"""
@@ -58,7 +58,7 @@ func _handle_get_list(peer_id: int):
 	
 	if lobby_keys.is_empty():
 		# Nessuna lobby pubblica, invia una lista vuota.
-		BackendServer.send_response(peer_id, "LOBBY_LIST_UPDATE", {"lobbies": []})
+		BackendServer.send_response(peer_id, "LOBBY_LIST_UPDATE", req_id, {"lobbies": []})
 		return
 
 	# 2. Recupera i dati di ogni lobby.
@@ -77,18 +77,18 @@ func _handle_get_list(peer_id: int):
 			lobbies_data.append(lobby_info)
 	
 	# 3. Invia la lista completa al client che ha fatto la richiesta.
-	BackendServer.send_response(peer_id, "LOBBY_LIST_UPDATE", {"lobbies": lobbies_data})
+	BackendServer.send_response(peer_id, "LOBBY_LIST_UPDATE", req_id, {"lobbies": lobbies_data})
 	
 func _broadcast_to_lobby(lobby_key: String, msg_type: String, payload: Dictionary, exclude_peer_id: int = 0):
 	var player_ids = BackendServer.redis_client.smembers_keys(lobby_key + ":players")
 	for id_str in player_ids:
 		var peer_id = BackendServer.get_peer_id_from_user_id(int(id_str)) # Il server ha bisogno di questo helper
 		if peer_id > 0 and peer_id != exclude_peer_id:
-			BackendServer.send_response(peer_id, msg_type, payload)
+			BackendServer.send_response(peer_id, msg_type, "", payload)
 
 # --- Gestori di Logica ---
 
-func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_create(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var new_lobby_id = BackendServer.redis_client.increment_value("global:next_lobby_id")
 	var lobby_key = "lobby:" + str(new_lobby_id)
 	
@@ -106,19 +106,19 @@ func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
 		BackendServer.redis_client.zadd_values("lobbies:public", {lobby_key: 1})
 	
 	# Fai entrare automaticamente il creatore nella lobby
-	_join_lobby_logic(peer_id, user_id, lobby_key)
+	_join_lobby_logic(peer_id, user_id, req_id, lobby_key)
 
-func _handle_join(peer_id: int, user_id: int, payload: Dictionary, current_lobby_id: String):
+func _handle_join(peer_id: int, user_id: int, req_id: String, payload: Dictionary, current_lobby_id: String):
 	if not current_lobby_id.is_empty(): # Già in una lobby
-		BackendServer.send_response(peer_id, "LOBBY_ERROR", {"message": "Sei già in una lobby."})
+		BackendServer.send_response(peer_id, "LOBBY_ERROR", req_id, {"message": "Sei già in una lobby."})
 		return
 	
 	var lobby_key = "lobby:" + str(payload.get("id"))
 	# ... (Aggiungi controlli: la lobby esiste? non è piena? etc.) ...
 	
-	_join_lobby_logic(peer_id, user_id, lobby_key)
+	_join_lobby_logic(peer_id, user_id, req_id, lobby_key)
 	
-func _join_lobby_logic(peer_id: int, user_id: int, lobby_key: String):
+func _join_lobby_logic(peer_id: int, user_id: int, req_id: String, lobby_key: String):
 	# Aggiungi il giocatore ai dati della lobby
 	BackendServer.redis_client.begin_transaction()
 	BackendServer.redis_client.sadd_values(lobby_key + ":players", [str(user_id)])
@@ -135,9 +135,9 @@ func _join_lobby_logic(peer_id: int, user_id: int, lobby_key: String):
 	# Invia al nuovo giocatore i dati completi della lobby
 	var lobby_data = BackendServer.redis_client.hget_all_values(lobby_key)
 	var player_ids = BackendServer.redis_client.smembers_keys(lobby_key + ":players")
-	BackendServer.send_response(peer_id, "LOBBY_JOIN_SUCCESS", {"lobby_data": lobby_data, "players": player_ids})
+	BackendServer.send_response(peer_id, "LOBBY_JOIN_SUCCESS", req_id, {"lobby_data": lobby_data, "players": player_ids})
 
-func _handle_leave(peer_id: int, user_id: int, lobby_key: String):
+func _handle_leave(peer_id: int, user_id: int, req_id: String, lobby_key: String):
 	if lobby_key.is_empty(): return # Non è in una lobby
 	
 	BackendServer.redis_client.begin_transaction()
@@ -148,7 +148,7 @@ func _handle_leave(peer_id: int, user_id: int, lobby_key: String):
 
 	# Notifica gli altri
 	_broadcast_to_lobby(lobby_key, "LOBBY_PLAYER_LEFT", {"user_id": user_id})
-	BackendServer.send_response(peer_id, "LOBBY_LEAVE_SUCCESS", {})
+	BackendServer.send_response(peer_id, "LOBBY_LEAVE_SUCCESS", req_id, {})
 	
 	var player_count = BackendServer.redis_client.scard_count(lobby_key + ":players")
 	if player_count == 0:
@@ -159,7 +159,7 @@ func _handle_leave(peer_id: int, user_id: int, lobby_key: String):
 		BackendServer.redis_client.zadd_values("lobbies:public", {lobby_key: player_count})
 		# ... (logica per riassegnare l'owner se necessario) ...
 
-func _handle_set_ready(peer_id: int, user_id: int, lobby_key: String, payload: Dictionary):
+func _handle_set_ready(peer_id: int, user_id: int, req_id: String, lobby_key: String, payload: Dictionary):
 	var is_ready = payload.get("ready", false)
 	if is_ready:
 		BackendServer.redis_client.sadd_values(lobby_key + ":ready_players", [str(user_id)])
@@ -168,7 +168,7 @@ func _handle_set_ready(peer_id: int, user_id: int, lobby_key: String, payload: D
 		
 	_broadcast_to_lobby(lobby_key, "LOBBY_PLAYER_READY", {"user_id": user_id, "is_ready": is_ready})
 
-func _handle_start_game(peer_id: int, user_id: int, lobby_key: String):
+func _handle_start_game(peer_id: int, user_id: int, req_id: String, lobby_key: String):
 	var lobby_data = BackendServer.redis_client.hget_all_values(lobby_key)
 	if int(lobby_data.get("owner_id")) != user_id:
 		# Solo l'owner può avviare
@@ -179,7 +179,7 @@ func _handle_start_game(peer_id: int, user_id: int, lobby_key: String):
 	
 	# Tutti devono essere pronti (tranne forse l'owner) e ci deve essere un n. minimo di giocatori
 	if players.size() < 2 or players.size() != ready_players.size():
-		BackendServer.send_response(peer_id, "LOBBY_ERROR", {"message": "Non tutti i giocatori sono pronti."})
+		BackendServer.send_response(peer_id, "LOBBY_ERROR", req_id, {"message": "Non tutti i giocatori sono pronti."})
 		return
 		
 	# Avvia la partita
@@ -190,11 +190,11 @@ func _handle_start_game(peer_id: int, user_id: int, lobby_key: String):
 	# e notificheresti i giocatori.
 	_broadcast_to_lobby(lobby_key, "LOBBY_GAME_START", {"game_id": "game:123"})
 
-func _handle_join_queue(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_join_queue(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	# Controlla se il giocatore è già in una lobby o in un'altra coda
 	var current_lobby_key = BackendServer.redis_client.hget_value("user:" + str(user_id), "current_lobby_id")
 	if not current_lobby_key.is_empty():
-		BackendServer.send_response(peer_id, "LOBBY_ERROR", {"message": "Sei già in una lobby o in coda."})
+		BackendServer.send_response(peer_id, "LOBBY_ERROR", req_id, {"message": "Sei già in una lobby o in coda."})
 		return
 
 	var matchmaking_type = payload.get("type", "default_1v1")
@@ -237,7 +237,7 @@ func _handle_join_queue(peer_id: int, user_id: int, payload: Dictionary):
 	
 	# 1. Fai entrare il giocatore nella lobby (riusiamo la logica esistente)
 	# Assicurati che _join_lobby_logic sia disponibile nel tuo script
-	_join_lobby_logic(peer_id, user_id, target_lobby_key)
+	_join_lobby_logic(peer_id, user_id, req_id, target_lobby_key)
 	
 	# Il client riceverà un LOBBY_JOIN_SUCCESS e potrà mostrare una UI "In coda..."
 	
@@ -254,10 +254,10 @@ func _handle_join_queue(peer_id: int, user_id: int, payload: Dictionary):
 		
 		# Avvia la partita (riusiamo la logica di avvio)
 		# Il "motivo" o l'iniziatore è il sistema
-		_handle_start_game(peer_id, -1, target_lobby_key)
+		_handle_start_game(peer_id, -1, req_id, target_lobby_key)
 
 
-func _handle_leave_queue(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_leave_queue(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	"""
 	Rimuove un giocatore da una coda di matchmaking.
 	Questa funzione riutilizza la logica generica di uscita da una lobby.
@@ -273,9 +273,9 @@ func _handle_leave_queue(peer_id: int, user_id: int, payload: Dictionary):
 
 	# Verifica che l'utente stia effettivamente uscendo da una coda di matchmaking e non da una lobby normale
 	if not matchmaking_type or matchmaking_type.is_empty():
-		BackendServer.send_response(peer_id, "LOBBY_ERROR", {"message": "Non sei in una coda di matchmaking."})
+		BackendServer.send_response(peer_id, "LOBBY_ERROR", req_id, {"message": "Non sei in una coda di matchmaking."})
 		return
 		
 	print("SERVER: Matchmaking - L'utente ", user_id, " sta uscendo dalla coda.")
 	# Chiamiamo la funzione generica per uscire da una lobby
-	_handle_leave(peer_id, user_id, current_lobby_key)
+	_handle_leave(peer_id, user_id, req_id, current_lobby_key)

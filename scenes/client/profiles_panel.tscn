@@ -1,0 +1,130 @@
+[gd_scene load_steps=4 format=3 uid="uid://byuxkprwmy7un"]
+
+[ext_resource type="Theme" uid="uid://bjy4pfwqpvo55" path="res://scenes/client/main_menu.tres" id="1_c8lnf"]
+[ext_resource type="Script" uid="uid://n510465kj4hf" path="res://scenes/client/profiles_panel.gd" id="2_hmv7m"]
+[ext_resource type="Script" uid="uid://bvfpj4i8bti1o" path="res://addons/godot_redis_cpp/client_modules/profile_controller.gd" id="3_j5f05"]
+
+[node name="ProfileManagement" type="Control" node_paths=PackedStringArray("profile_controller")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_c8lnf")
+script = ExtResource("2_hmv7m")
+profile_controller = NodePath("ProfileController")
+
+[node name="Titolo" type="Label" parent="."]
+layout_mode = 0
+offset_left = 35.0
+offset_top = 21.0
+offset_right = 379.0
+offset_bottom = 83.0
+theme_override_font_sizes/font_size = 31
+text = "Profile Managemenmt"
+
+[node name="ProfileController" type="Node" parent="."]
+script = ExtResource("3_j5f05")
+metadata/_custom_type_script = "uid://bvfpj4i8bti1o"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 35.0
+offset_top = 101.0
+offset_right = 562.0
+offset_bottom = 176.0
+
+[node name="Label" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "User ID:"
+
+[node name="UserIdInput" type="LineEdit" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+
+[node name="GetProfilesButton" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "Search"
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -102.0
+offset_top = 12.0
+offset_right = -20.0
+offset_bottom = 65.0
+text = "Back"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 0
+offset_left = 33.0
+offset_top = 210.0
+offset_right = 558.0
+offset_bottom = 624.0
+horizontal_scroll_mode = 0
+
+[node name="ProfileList" type="ItemList" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ProfileDetailPanel" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 590.0
+offset_top = 103.0
+offset_right = 1123.0
+offset_bottom = 616.0
+
+[node name="MarginContainer" type="MarginContainer" parent="ProfileDetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="GridContainer" parent="ProfileDetailPanel/MarginContainer"]
+layout_mode = 2
+columns = 2
+
+[node name="Label" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "User Name:"
+
+[node name="UsernameLabel" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label2" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Level"
+
+[node name="LevelLabel" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="Label3" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Bio"
+
+[node name="BioEdit" type="TextEdit" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+placeholder_text = "Set your Player bio"
+
+[node name="Label4" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Avatar"
+
+[node name="AvatarEdit" type="LineEdit" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+placeholder_text = "avatar link"
+
+[node name="SaveButton" type="Button" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Save"
+
+[node name="StatusLabel" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2

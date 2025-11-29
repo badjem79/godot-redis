@@ -19,17 +19,17 @@ func get_handled_message_types() -> Array[String]:
 		"GAMEOBJECT_ACL_ADD", "GAMEOBJECT_ACL_REMOVE"
 	]
 
-func handle_message(peer_id: int, msg_type: String, payload: Dictionary, token: String):
+func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, token: String):
 	var user_id = BackendServer.authenticated_peers[peer_id].user_id
 
 	match msg_type:
-		"GAMEOBJECT_CREATE": _handle_create(peer_id, user_id, payload)
-		"GAMEOBJECT_GET": _handle_get(peer_id, user_id, payload)
-		"GAMEOBJECT_GET_MINE": _handle_get_mine(peer_id, user_id, payload)
-		"GAMEOBJECT_UPDATE": _handle_update(peer_id, user_id, payload)
-		"GAMEOBJECT_DELETE": _handle_delete(peer_id, user_id, payload)
-		"GAMEOBJECT_ACL_ADD": _handle_acl_add(peer_id, user_id, payload)
-		"GAMEOBJECT_ACL_REMOVE": _handle_acl_remove(peer_id, user_id, payload)
+		"GAMEOBJECT_CREATE": _handle_create(peer_id, user_id, req_id, payload)
+		"GAMEOBJECT_GET": _handle_get(peer_id, user_id, req_id, payload)
+		"GAMEOBJECT_GET_MINE": _handle_get_mine(peer_id, user_id, req_id, payload)
+		"GAMEOBJECT_UPDATE": _handle_update(peer_id, user_id, req_id, payload)
+		"GAMEOBJECT_DELETE": _handle_delete(peer_id, user_id, req_id, payload)
+		"GAMEOBJECT_ACL_ADD": _handle_acl_add(peer_id, user_id, req_id, payload)
+		"GAMEOBJECT_ACL_REMOVE": _handle_acl_remove(peer_id, user_id, req_id, payload)
 
 # --- FUNZIONI HELPER PER I PERMESSI (AGGIORNATE) ---
 
@@ -61,7 +61,7 @@ func _can_write(user_id: int, object_key: String, object_data: Dictionary) -> bo
 
 # --- GESTORI DI LOGICA (con modifiche) ---
 
-func _handle_get(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_get(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var keys = payload.get("keys", [])
 	var results = {}
 
@@ -74,9 +74,9 @@ func _handle_get(peer_id: int, user_id: int, payload: Dictionary):
 			else:
 				results[key] = {"error": "Accesso in lettura negato"}
 	
-	BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": results})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", req_id, {"success": true, "objects": results})
 
-func _handle_get_mine(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_get_mine(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var type_filter = payload.get("type", "")
 	
 	var index_key: String
@@ -91,7 +91,7 @@ func _handle_get_mine(peer_id: int, user_id: int, payload: Dictionary):
 	var object_keys = BackendServer.redis_client.smembers_keys(index_key)
 	
 	if object_keys.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": {}})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", req_id, {"success": true, "objects": {}})
 		return
 		
 	# 2. Recupera tutti gli HASH corrispondenti
@@ -103,16 +103,16 @@ func _handle_get_mine(peer_id: int, user_id: int, payload: Dictionary):
 	# Non serve controllare i permessi, perché stiamo cercando
 	# gli oggetti del richiedente stesso.
 	
-	BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", {"success": true, "objects": objects_data})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_GET_RESULT", req_id, {"success": true, "objects": objects_data})
 	
-func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_create(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var type = payload.get("type")
 	var data = payload.get("data", {})
 	var parent_key = payload.get("parent", "")
 
 	# Validazione di base
 	if not type or type.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Tipo di oggetto non specificato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Tipo di oggetto non specificato."})
 		return
 
 	# Genera un nuovo ID per questo tipo di oggetto
@@ -154,21 +154,21 @@ func _handle_create(peer_id: int, user_id: int, payload: Dictionary):
 	var result = BackendServer.redis_client.commit_transaction()
 
 	if result.get("success"):
-		BackendServer.send_response(peer_id, "GAMEOBJECT_CREATE_RESULT", {"success": true, "object_data": object_data})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_CREATE_RESULT", req_id, {"success": true, "object_data": object_data})
 	else:
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Fallimento nella creazione dell'oggetto (transazione)."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Fallimento nella creazione dell'oggetto (transazione)."})
 
-func _handle_update(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_update(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var key = payload.get("key")
 	var data_to_update = payload.get("data", {})
 	
 	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Oggetto non trovato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Oggetto non trovato."})
 		return
 		
 	if not _can_write(user_id, key, object_data):
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Permesso di scrittura negato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Permesso di scrittura negato."})
 		return
 		
 	# Filtra per evitare di sovrascrivere metadati fondamentali
@@ -184,13 +184,13 @@ func _handle_update(peer_id: int, user_id: int, payload: Dictionary):
 	
 	# Invia indietro l'oggetto aggiornato
 	var updated_data = BackendServer.redis_client.hget_all_values(key)
-	BackendServer.send_response(peer_id, "GAMEOBJECT_UPDATE_RESULT", {"success": true, "updated_data": updated_data})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_UPDATE_RESULT", req_id, {"success": true, "updated_data": updated_data})
 
-func _handle_delete(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_delete(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var key = payload.get("key")
 	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", {"success": true, "key": key})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", req_id, {"success": true, "key": key})
 		return # Se non esiste, va bene così
 	
 	var owner_id = int(object_data.get("owner_id", -1))
@@ -199,7 +199,7 @@ func _handle_delete(peer_id: int, user_id: int, payload: Dictionary):
 
 	# Solo il proprietario può cancellare
 	if owner_id != user_id:
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può cancellare l'oggetto."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Solo il proprietario può cancellare l'oggetto."})
 		return
 
 	# --- AGGIORNAMENTO DEGLI INDICI ---
@@ -222,17 +222,17 @@ func _handle_delete(peer_id: int, user_id: int, payload: Dictionary):
 	var result = BackendServer.redis_client.commit_transaction()
 	# --- FINE AGGIORNAMENTO INDICI ---
 	
-	BackendServer.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", {"success": true, "key": key})
+	BackendServer.send_response(peer_id, "GAMEOBJECT_DELETE_RESULT", req_id, {"success": true, "key": key})
 
 # --- NUOVI GESTORI PER LE ACL ---
 
-func _handle_acl_add(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_acl_add(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var key = payload.get("key")
 	var acl_type = payload.get("acl_type") # "read" o "write"
 	var target_user_ids = payload.get("user_ids", []) # Array di ID da aggiungere
 
 	if not (acl_type in ["read", "write"]) or target_user_ids.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Payload ACL non valido."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Payload ACL non valido."})
 		return
 		
 	var object_data = BackendServer.redis_client.hget_all_values(key)
@@ -241,7 +241,7 @@ func _handle_acl_add(peer_id: int, user_id: int, payload: Dictionary):
 		
 	# Solo il PROPRIETARIO può modificare le ACL
 	if int(object_data.get("owner_id", -1)) != user_id:
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può modificare le ACL."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Solo il proprietario può modificare le ACL."})
 		return
 
 	var acl_key = "%s:%s_acl" % [key, acl_type]
@@ -253,30 +253,30 @@ func _handle_acl_add(peer_id: int, user_id: int, payload: Dictionary):
 
 	BackendServer.redis_client.sadd_values(acl_key, members_to_add)
 
-	BackendServer.send_response(peer_id, "GAMEOBJECT_ACL_ADD_RESULT", {
+	BackendServer.send_response(peer_id, "GAMEOBJECT_ACL_ADD_RESULT", req_id, {
 		"success": true,
 		"key": key,
 		"acl_type": acl_type,
 		"added_users": target_user_ids
 	})
 
-func _handle_acl_remove(peer_id: int, user_id: int, payload: Dictionary):
+func _handle_acl_remove(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var key = payload.get("key")
 	var acl_type = payload.get("acl_type")
 	var target_user_ids = payload.get("user_ids", [])
 
 	if not (acl_type in ["read", "write"]) or target_user_ids.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Payload ACL non valido."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Payload ACL non valido."})
 		return
 		
 	var object_data = BackendServer.redis_client.hget_all_values(key)
 	if object_data.is_empty():
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Oggetto non trovato."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Oggetto non trovato."})
 		return
 
 	# Solo il proprietario può modificare le ACL
 	if int(object_data.get("owner_id", -1)) != user_id:
-		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", {"message": "Solo il proprietario può modificare le ACL."})
+		BackendServer.send_response(peer_id, "GAMEOBJECT_ERROR", req_id, {"message": "Solo il proprietario può modificare le ACL."})
 		return
 
 	var acl_key = "%s:%s_acl" % [key, acl_type]
@@ -287,7 +287,7 @@ func _handle_acl_remove(peer_id: int, user_id: int, payload: Dictionary):
 
 	BackendServer.redis_client.srem_values(acl_key, members_to_remove)
 
-	BackendServer.send_response(peer_id, "GAMEOBJECT_ACL_REMOVE_RESULT", {
+	BackendServer.send_response(peer_id, "GAMEOBJECT_ACL_REMOVE_RESULT", req_id, {
 		"success": true,
 		"key": key,
 		"acl_type": acl_type,

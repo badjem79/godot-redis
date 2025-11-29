@@ -6,19 +6,7 @@ signal registration_success
 signal registration_failed(reason)
 signal login_success(user_data)
 signal login_failed(reason)
-
-var _registered_handlers = ["REGISTER_RESULT", "LOGIN_RESULT"]
-
-func _ready() -> void:
-	for msg_type in _registered_handlers:
-		NetworkManager.register_handler(msg_type, Callable(self, "_on_" + msg_type.to_lower()))
-
-func _exit_tree():
-	# De-registra tutti i gestori quando il nodo esce dalla scena
-	for msg_type in _registered_handlers:
-		NetworkManager.unregister_handler(msg_type)
-
-# --- API Pubblica di questo Modulo (chiamata dall'UI) ---
+signal logout_success
 
 func attempt_login(username: String, password: String):
 	"""Invia una richiesta di login al server."""
@@ -27,7 +15,7 @@ func attempt_login(username: String, password: String):
 		return
 	
 	var payload = {"username": username, "password": password}
-	NetworkManager.send_message("LOGIN", payload)
+	NetworkManager.send_message("LOGIN", payload, _on_login_result)
 
 func attempt_register(username: String, password: String):
 	"""Invia una richiesta di registrazione al server."""
@@ -36,7 +24,12 @@ func attempt_register(username: String, password: String):
 		return
 		
 	var payload = {"username": username, "password": password}
-	NetworkManager.send_message("REGISTER", payload)
+	NetworkManager.send_message("REGISTER", payload, _on_register_result)
+
+func attempt_logout():
+	"""Invia una richiesta di logout al server."""
+	# Non c'è bisogno di un payload, ma inviamo un dizionario vuoto per coerenza.
+	NetworkManager.send_message("LOGOUT", {}, _on_logout_result)
 
 # --- Gestori delle Risposte dal Server (chiamati dal NetworkManager) ---
 
@@ -65,3 +58,15 @@ func _on_register_result(payload: Dictionary): # Corrisponde a "REGISTER_RESULT"
 		emit_signal("registration_success")
 	else:
 		emit_signal("registration_failed", payload.get("message", "Registrazione fallita."))
+
+# Questo metodo viene eseguito quando il NetworkManager riceve un messaggio "LOGOUT_RESULT"
+func _on_logout_result(payload: Dictionary): # Corrisponde a "LOGOUT_RESULT"
+	if payload.get("success"):
+		print("CLIENT: Logout confermato dal server.")
+	else:
+		# Anche se il logout fallisce lato server (improbabile), forziamo la pulizia lato client.
+		printerr("LoginController: Il server ha risposto con un fallimento al logout. Forzatura logout locale.")
+	
+	NetworkManager.session_token = ""
+	NetworkManager.user_data = {}
+	emit_signal("logout_success")

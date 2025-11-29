@@ -8,20 +8,6 @@ signal achievement_unlocked_success(achievement_id)
 signal achievement_unlocked_failed(reason)
 signal profiles_received(profiles_data)
 
-var _registered_handlers = [
-	"PROFILE_UPDATE_RESULT",
-	"ACHIEVEMENT_UNLOCKED_RESULT",
-	"GET_PROFILES_RESULT"
-]
-
-func _ready():
-	for msg_type in _registered_handlers:
-		NetworkManager.register_handler(msg_type, Callable(self, "_on_" + msg_type.to_lower()))
-
-func _exit_tree():
-	for msg_type in _registered_handlers:
-		NetworkManager.unregister_handler(msg_type)
-
 # --- API Pubblica di questo Modulo ---
 
 func update_profile(data: Dictionary):
@@ -33,7 +19,7 @@ func update_profile(data: Dictionary):
 		print("ProfileController: nessun dato da aggiornare.")
 		return
 	
-	NetworkManager.send_message("PROFILE_UPDATE", data)
+	NetworkManager.send_message("PROFILE_UPDATE", data, _on_profile_update_result)
 
 func unlock_achievement(achievement_id: String):
 	"""
@@ -43,14 +29,19 @@ func unlock_achievement(achievement_id: String):
 	if achievement_id.is_empty():
 		return
 	
-	NetworkManager.send_message("ACHIEVEMENT_UNLOCK", {"id": achievement_id})
+	NetworkManager.send_message("ACHIEVEMENT_UNLOCK", {"id": achievement_id}, _on_achievement_unlocked_result)
 
 func get_profiles(user_ids: Array):
 	"""Richiede i dati del profilo per uno o più user_id."""
 	if user_ids.is_empty():
 		return
 	
-	NetworkManager.send_message("GET_PROFILES", {"ids": user_ids})
+	NetworkManager.send_message("GET_PROFILES", {"ids": user_ids}, _on_get_profiles_result)
+
+func get_all_profiles():
+	"""Richiede i dati del profilo per tutti gli utenti."""
+	# Invia un payload vuoto. Il server lo interpreterà come una richiesta per tutti.
+	NetworkManager.send_message("GET_PROFILES", {}, _on_get_profiles_result)
 
 
 # --- Gestori delle Risposte dal Server ---

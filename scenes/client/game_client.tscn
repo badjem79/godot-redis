@@ -13,6 +13,7 @@ script = ExtResource("1_8gxen")
 script = ExtResource("1_b4d6q")
 
 [node name="AccessPanel" type="Control" parent="." node_paths=PackedStringArray("login_controller")]
+visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_right = 1154.0
