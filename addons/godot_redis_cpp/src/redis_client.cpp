@@ -175,7 +175,13 @@ String RedisClient::get_value(const String& key) {
     if (!is_connected()) return "";
     try {
         auto val = _redis_client->get(key.utf8().get_data());
-        return val ? String(val->c_str()) : String(); // Restituisce stringa vuota se non esiste
+        if (val) {
+            // Metodo compatibile per creare una stringa da un buffer UTF-8
+            String result;
+            return result.utf8(val->c_str(), val->length());
+        } else {
+            return String(); // Restituisce stringa vuota se non esiste
+        }
     } catch (const sw::redis::Error &e) {
         UtilityFunctions::print("[Redis C++] Errore in get_value: ", e.what());
         return "";
@@ -225,7 +231,12 @@ String RedisClient::hget_value(const String& key, const String& field) {
     if (!is_connected()) return "";
     try {
         auto val = _redis_client->hget(key.utf8().get_data(), field.utf8().get_data());
-        return val ? String(val->c_str()) : String(); // Restituisce stringa vuota se non trovato
+        if (val) {
+            String result;
+            return result.utf8(val->c_str(), val->length());
+        } else {
+            return String(); // Restituisce stringa vuota se non trovato
+        }
     } catch (const sw::redis::Error &e) {
         String error_message = "[Redis C++] Errore in hget_value: ";
         error_message += e.what();
@@ -306,10 +317,13 @@ Dictionary RedisClient::hget_all_values(const String& key) {
     if (!is_connected()) return result;
     try {
         std::unordered_map<std::string, std::string> items;
-        _redis_client->hgetall(key.utf8().get_data(), std::inserter(items, items.begin()));
+        _redis_client->hgetall(key.utf8().get_data(), std::inserter(items, items.end()));
         
         for (const auto& pair : items) {
-            result[String(pair.first.c_str())] = String(pair.second.c_str());
+            String gd_key;
+            String gd_value;
+
+            result[gd_key.utf8(pair.first.c_str(), pair.first.length())] = gd_value.utf8(pair.second.c_str(), pair.second.length());
         }
     } catch (const sw::redis::Error &e) {
         String error_message = "[Redis C++] Errore in hget_all_values: ";
@@ -376,7 +390,8 @@ Array RedisClient::smembers_keys(const String& key) {
         _redis_client->smembers(key.utf8().get_data(), std::back_inserter(member_vec));
         
         for (const auto& member : member_vec) {
-            keys_array.push_back(String(member.c_str()));
+            String gd_member;
+            keys_array.push_back(gd_member.utf8(member.c_str(), member.length()));
         }
     } catch (const sw::redis::Error &e) {
         String error_message = "[Redis C++] Errore in smembers_keys: ";
@@ -476,7 +491,8 @@ Variant RedisClient::zrange_values(const String& key, int64_t start, int64_t sto
             std::vector<std::pair<std::string, double>> values;
             _redis_client->zrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
             for (const auto& pair : values) {
-                result[String(pair.first.c_str())] = pair.second;
+                String gd_key;
+                result[gd_key.utf8(pair.first.c_str(), pair.first.length())] = pair.second;
             }
             return result;
         } else {
@@ -484,7 +500,8 @@ Variant RedisClient::zrange_values(const String& key, int64_t start, int64_t sto
             std::vector<std::string> values;
             _redis_client->zrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
             for (const auto& val : values) {
-                result.push_back(String(val.c_str()));
+                String gd_val;
+                result.push_back(gd_val.utf8(val.c_str(), val.length()));
             }
             return result;
         }
@@ -505,7 +522,8 @@ Variant RedisClient::zrevrange_values(const String& key, int64_t start, int64_t 
             std::vector<std::pair<std::string, double>> values;
             _redis_client->zrevrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
             for (const auto& pair : values) {
-                result[String(pair.first.c_str())] = pair.second;
+                String gd_key;
+                result[gd_key.utf8(pair.first.c_str(), pair.first.length())] = pair.second;
             }
             return result;
         } else {
@@ -513,7 +531,8 @@ Variant RedisClient::zrevrange_values(const String& key, int64_t start, int64_t 
             std::vector<std::string> values;
             _redis_client->zrevrange(key.utf8().get_data(), start, stop, std::back_inserter(values));
             for (const auto& val : values) {
-                result.push_back(String(val.c_str()));
+                String gd_val;
+                result.push_back(gd_val.utf8(val.c_str(), val.length()));
             }
             return result;
         }
@@ -532,14 +551,18 @@ Array RedisClient::scan_keys(const String& pattern, int64_t count) {
     if (!is_connected()) return keys_array;
     try {
         long long cursor = 0;
-        std::vector<std::string> keys;
         
-        // redis-plus-plus gestisce il ciclo di scan internamente, molto comodo!
-        // Usiamo un inseritore per popolare direttamente il nostro vettore.
-        _redis_client->scan(cursor, pattern.utf8().get_data(), count, std::back_inserter(keys));
+        while (true) {
+            std::vector<std::string> keys;
+            cursor = _redis_client->scan(cursor, pattern.utf8().get_data(), count, std::back_inserter(keys));
 
-        for (const auto& key : keys) {
-            keys_array.push_back(String(key.c_str()));
+            for (const auto& key : keys) {
+                String gd_key;
+                keys_array.push_back(gd_key.utf8(key.c_str(), key.length()));
+            }
+            if (cursor == 0) {
+                break; // Scansione completata
+            }
         }
     } catch (const sw::redis::Error &e) {
         String error_message = "[Redis C++] Errore in scan_keys: ";

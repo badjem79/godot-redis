@@ -38,14 +38,36 @@ offset_bottom = 176.0
 [node name="Label" type="Label" parent="HBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "User ID:"
+text = "User IDs:"
 
 [node name="UserIdInput" type="LineEdit" parent="HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
+placeholder_text = "1,2,3"
 
 [node name="GetProfilesButton" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+text = "Search"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 35.0
+offset_top = 193.0
+offset_right = 560.0
+offset_bottom = 268.0
+
+[node name="Label" type="Label" parent="HBoxContainer2"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "User Name:"
+
+[node name="UserNameInput" type="LineEdit" parent="HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+
+[node name="GetProfileByNameButton" type="Button" parent="HBoxContainer2"]
 layout_mode = 2
 text = "Search"
 
@@ -58,12 +80,13 @@ offset_left = -102.0
 offset_top = 12.0
 offset_right = -20.0
 offset_bottom = 65.0
+grow_horizontal = 0
 text = "Back"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 0
 offset_left = 33.0
-offset_top = 210.0
+offset_top = 299.0
 offset_right = 558.0
 offset_bottom = 624.0
 horizontal_scroll_mode = 0
@@ -71,6 +94,7 @@ horizontal_scroll_mode = 0
 [node name="ProfileList" type="ItemList" parent="ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="ProfileDetailPanel" type="PanelContainer" parent="."]
 layout_mode = 0

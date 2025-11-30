@@ -4,7 +4,6 @@ var rc
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	
 	# creo un riferimento al redisClient
 	rc = BackendServer.redis_client
 	
@@ -31,6 +30,9 @@ func _on_redis_connection_status_changed(connected: bool, message: String):
 # per dare a Redis il tempo di elaborare i comandi tra un test e l'altro.
 func run_redis_tests() -> void:
 	print("\n--- ESECUZIONE TEST REDIS ---")
+	
+	await get_tree().create_timer(0.1).timeout
+	await run_utf8_test()
 	
 	# === TEST 1: SET e GET di una stringa ===
 	var player_key = "player:godot:1"
@@ -81,6 +83,12 @@ func run_redis_tests() -> void:
 	
 	await get_tree().create_timer(0.1).timeout
 	await run_set_tests()
+	
+	await get_tree().create_timer(0.1).timeout
+	await run_scard_test() # Funzione già presente, ora viene chiamata
+	
+	await get_tree().create_timer(0.1).timeout
+	await run_more_set_tests()
 	
 	await get_tree().create_timer(0.1).timeout
 	await run_sorted_set_tests()
@@ -134,6 +142,32 @@ func run_hash_and_scan_tests() -> void:
 	else:
 		printerr("   > RISULTATO SCAN: FALLITO!")
 
+	await get_tree().create_timer(0.1).timeout
+
+	# === TEST 4.1: HSET_MULTIPLE_VALUES e HDEL_VALUES ===
+	print("\n4.1 Test HSET_MULTIPLE_VALUES e HDEL:")
+	var multi_user_key = "user:multi:789"
+	var multi_data = {"name": "MultiMan", "status": "online", "guild": "Testers"}
+	print("   > Imposto dati multipli per '", multi_user_key, "'")
+	rc.hset_multiple_values(multi_user_key, multi_data)
+	
+	await get_tree().create_timer(0.1).timeout
+	
+	var retrieved_multi_data = rc.hget_all_values(multi_user_key)
+	if retrieved_multi_data.size() == 3 and retrieved_multi_data.get("guild") == "Testers":
+		print("   > RISULTATO HSET_MULTIPLE_VALUES: OK!")
+	else:
+		printerr("   > RISULTATO HSET_MULTIPLE_VALUES: FALLITO! Dati recuperati: ", retrieved_multi_data)
+
+	print("   > Elimino i campi 'status' e 'guild'...")
+	rc.hdel_values(multi_user_key, ["status", "guild"])
+	await get_tree().create_timer(0.1).timeout
+	retrieved_multi_data = rc.hget_all_values(multi_user_key)
+	if retrieved_multi_data.size() == 1 and retrieved_multi_data.has("name"):
+		print("   > RISULTATO HDEL_VALUES: OK!")
+	else:
+		printerr("   > RISULTATO HDEL_VALUES: FALLITO! Dati rimanenti: ", retrieved_multi_data)
+
 func run_transaction_test() -> void:
 	print("\n--- ESECUZIONE TEST TRANSAZIONE ---")
 	
@@ -153,6 +187,11 @@ func run_transaction_test() -> void:
 	if not success_begin:
 		printerr("   > Fallimento nell'iniziare la transazione!")
 		return
+	
+	if rc.is_in_transaction():
+		print("   > Verifica is_in_transaction(): OK!")
+	else:
+		printerr("   > Verifica is_in_transaction(): FALLITO!")
 	
 	print("   > Transazione iniziata. Trasferisco 20 da A a B...")
 	# Questi comandi vengono solo accodati, non eseguiti
@@ -175,9 +214,28 @@ func run_transaction_test() -> void:
 	else:
 		printerr("   > RISULTATO: FALLITO! Il commit non è riuscito.")
 	
-	# TEST DI FALLIMENTO (opzionale ma consigliato)
-	# Qui dovresti lanciare un altro client (o usare redis-cli) per modificare
-	# una delle chiavi 'watched' mentre la transazione è aperta per vedere il fallimento.
+	await get_tree().create_timer(0.1).timeout
+
+	# === TEST 5.1: Transazione con DISCARD ===
+	print("\n5.1 Test Transazione (discard):")
+	print("   > Saldo iniziale A: ", rc.get_value(account_a))
+	
+	rc.begin_transaction([account_a])
+	print("   > Transazione iniziata. Accodo un incremento di 1000...")
+	rc.increment_value(account_a, 1000)
+	
+	print("   > Annullamento transazione con DISCARD...")
+	rc.discard_transaction()
+	
+	if not rc.is_in_transaction():
+		print("   > Verifica is_in_transaction() dopo discard: OK!")
+	else:
+		printerr("   > Verifica is_in_transaction() dopo discard: FALLITO!")
+
+	if int(rc.get_value(account_a)) == 80:
+		print("   > RISULTATO DISCARD: OK! Il saldo non è cambiato.")
+	else:
+		printerr("   > RISULTATO DISCARD: FALLITO! Il saldo è cambiato: ", rc.get_value(account_a))
 # In uno script di test
 
 func run_del_test():
@@ -261,6 +319,33 @@ func run_set_tests():
 	else:
 		printerr("   > RISULTATO: FALLITO!")
 
+func run_more_set_tests():
+	var item_set_key = "inventory:user:101"
+	print("\n--- ESECUZIONE TEST SET AGGIUNTIVI (SISMEMBER) ---")
+	
+	rc.del_keys([item_set_key])
+	rc.sadd_values(item_set_key, ["sword", "shield", "potion"])
+	
+	await get_tree().create_timer(0.1).timeout
+	
+	# 1. Test SISMEMBER (elemento presente)
+	print("\n1. Test SISMEMBER (successo):")
+	var has_sword = rc.sismember(item_set_key, "sword")
+	print("   > L'utente ha 'sword'? ", has_sword)
+	if has_sword:
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+		
+	# 2. Test SISMEMBER (elemento assente)
+	print("\n2. Test SISMEMBER (fallimento):")
+	var has_helmet = rc.sismember(item_set_key, "helmet")
+	print("   > L'utente ha 'helmet'? ", has_helmet)
+	if not has_helmet:
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+
 func run_scard_test():
 	var test_set_key = "test:scard_set"
 	
@@ -338,6 +423,17 @@ func run_sorted_set_tests():
 	else:
 		printerr("   > RISULTATO: FALLITO!")
 
+	await get_tree().create_timer(0.1).timeout
+
+	# 2.1 Test ZRANGE (per ottenere gli ultimi 2)
+	print("\n2.1 Test ZRANGE (Ultimi 2):")
+	var bottom_2_with_scores = rc.zrange_values(leaderboard_key, 0, 1, true)
+	print("   > Classifica Ultimi 2 (con punteggi): ", bottom_2_with_scores)
+	if bottom_2_with_scores.size() == 2 and bottom_2_with_scores.has("user:101"):
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+
 	# 3. Test ZREM (con zrem_values)
 	print("\n3. Test ZREM:")
 	var player_to_remove = ["user:103"] # Charlie viene bannato
@@ -352,3 +448,39 @@ func run_sorted_set_tests():
 		print("   > RISULTATO: OK!")
 	else:
 		printerr("   > RISULTATO: FALLITO!")
+
+func run_utf8_test():
+	print("\n--- ESECUZIONE TEST UTF-8 ---")
+	
+	var utf8_key = "test:utf8:string"
+	var utf8_value = "Questa è una bio con caratteri accentati (è, à, ù), simboli (€) e lingue diverse (你好, 👋)."
+	
+	# 1. Test SET/GET con UTF-8
+	print("\n1. Test SET/GET con UTF-8:")
+	rc.set_value(utf8_key, utf8_value)
+	await get_tree().create_timer(0.1).timeout
+	var retrieved_utf8 = rc.get_value(utf8_key)
+	print("   > Valore recuperato: '", retrieved_utf8, "'")
+	if retrieved_utf8 == utf8_value:
+		print("   > RISULTATO: OK!")
+	else:
+		printerr("   > RISULTATO: FALLITO!")
+		
+	# 2. Test HASH con UTF-8
+	print("\n2. Test HASH con UTF-8:")
+	var utf8_hash_key = "user:utf8:profile"
+	var utf8_field = "descrizione_你好"
+	rc.hset_value(utf8_hash_key, utf8_field, utf8_value)
+	await get_tree().create_timer(0.1).timeout
+	
+	var retrieved_hash_val = rc.hget_value(utf8_hash_key, utf8_field)
+	if retrieved_hash_val == utf8_value:
+		print("   > RISULTATO HGET: OK!")
+	else:
+		printerr("   > RISULTATO HGET: FALLITO!")
+		
+	var retrieved_hash_all = rc.hget_all_values(utf8_hash_key)
+	if retrieved_hash_all.size() == 1 and retrieved_hash_all.get(utf8_field) == utf8_value:
+		print("   > RISULTATO HGETALL: OK!")
+	else:
+		printerr("   > RISULTATO HGETALL: FALLITO!")

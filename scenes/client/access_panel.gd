@@ -30,6 +30,10 @@ func _ready() -> void:
 	# Connetti i segnali dei pulsanti
 	register_button.pressed.connect(_on_register_button_pressed)
 	login_button.pressed.connect(_on_login_button_pressed)
+	
+	# Connetti il segnale "Invio" dai campi password per un accesso rapido
+	register_password_input.text_submitted.connect(_on_register_button_pressed)
+	login_password_input.text_submitted.connect(_on_login_button_pressed)
 
 	# Connetti i segnali dal LoginController per aggiornare la UI
 	login_controller.registration_success.connect(_on_registration_success)
@@ -40,13 +44,13 @@ func _ready() -> void:
 
 # --- Gestori dei segnali dei Pulsanti ---
 
-func _on_register_button_pressed() -> void:
+func _on_register_button_pressed(_extra_arg = null) -> void:
 	var username = register_username_input.text
 	var password = register_password_input.text
 	register_status_label.text = "Registrazione in corso..."
 	login_controller.attempt_register(username, password)
 
-func _on_login_button_pressed() -> void:
+func _on_login_button_pressed(_extra_arg = null) -> void:
 	var username = login_username_input.text
 	var password = login_password_input.text
 	login_status_label.text = "Login in corso..."

@@ -38,6 +38,13 @@ func get_profiles(user_ids: Array):
 	
 	NetworkManager.send_message("GET_PROFILES", {"ids": user_ids}, _on_get_profiles_result)
 
+func get_profile_by_name(user_name: String):
+	"""Richiede i dati del profilo per uno o più user_id."""
+	if user_name.is_empty():
+		return
+	
+	NetworkManager.send_message("GET_PROFILES", {"username": user_name}, _on_get_profiles_result)
+
 func get_all_profiles():
 	"""Richiede i dati del profilo per tutti gli utenti."""
 	# Invia un payload vuoto. Il server lo interpreterà come una richiesta per tutti.

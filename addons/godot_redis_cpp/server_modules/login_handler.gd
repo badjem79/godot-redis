@@ -51,11 +51,17 @@ func _handle_register(peer_id: int, req_id: String, payload: Dictionary):
 	if not existing_id.is_empty():
 		BackendServer.send_response(peer_id, "REGISTER_RESULT", req_id, {"success": false, "message": "Username già in uso."})
 		return
-
-	# Genera un nuovo ID utente in modo atomico
+		
+	# --- FASE 1: Ottieni un ID utente unico in modo atomico ---
+	# Il comando INCR è atomico di per sé, quindi è sicuro eseguirlo da solo.
 	var new_user_id = redis_client.increment_value("global:next_user_id")
-	var user_key = "user:" + str(new_user_id)
+	if new_user_id == 0: # L'incremento ha fallito
+		printerr("SERVER: Fallimento critico nell'ottenere un nuovo ID utente da Redis.")
+		BackendServer.send_response(peer_id, "REGISTER_RESULT", req_id, {"success": false, "message": "Errore interno del server."})
+		return
 	
+	var user_key = "user:" + str(new_user_id)
+
 	# Crea l'hash della password (MAI SALVARE IN CHIARO)
 	var password_hash = password.sha256_text()
 	
@@ -68,11 +74,15 @@ func _handle_register(peer_id: int, req_id: String, payload: Dictionary):
 		"created_at": Time.get_unix_time_from_system()
 	}
 	
-	# Salva i dati
-	var success_hset = redis_client.hset_multiple_values(user_key, user_data)
-	var success_set = redis_client.set_value(username_key, str(new_user_id))
+	# --- FASE 2: Salva i dati dell'utente in una transazione ---
+	# Usiamo WATCH sulla chiave dell'username per evitare race condition
+	# se due utenti si registrano con lo stesso nome contemporaneamente.
+	redis_client.begin_transaction([username_key])
+	redis_client.hset_multiple_values(user_key, user_data)
+	redis_client.set_value(username_key, str(new_user_id))
 
-	if success_hset and success_set:
+	var result = redis_client.commit_transaction()
+	if result.get("success"):
 		print("SERVER: Utente '", username, "' registrato con ID ", new_user_id)
 		BackendServer.send_response(peer_id, "REGISTER_RESULT", req_id, {"success": true, "message": "Registrazione completata!"})
 	else:

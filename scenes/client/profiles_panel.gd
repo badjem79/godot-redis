@@ -7,6 +7,10 @@ extends Control
 @onready var user_id_input: LineEdit = $HBoxContainer/UserIdInput
 @onready var get_profiles_button: Button = $HBoxContainer/GetProfilesButton
 @onready var profile_list: ItemList = $ScrollContainer/ProfileList
+
+@onready var user_name_input: LineEdit = $HBoxContainer2/UserNameInput
+@onready var get_profile_by_name_button: Button = $HBoxContainer2/GetProfileByNameButton
+
 @onready var back_button: Button = $BackButton
 
 # --- Pannello Dettaglio Profilo ---
@@ -26,6 +30,8 @@ func _ready() -> void:
 	# Connessione dei segnali dei bottoni e del controller
 	back_button.pressed.connect(_on_back_button_pressed)
 	get_profiles_button.pressed.connect(_on_get_profiles_button_pressed)
+	get_profile_by_name_button.pressed.connect(_on_get_profile_by_name_button_pressed)
+	
 	profile_list.item_selected.connect(_on_profile_selected)
 	save_button.pressed.connect(_on_save_button_pressed)
 	
@@ -37,8 +43,8 @@ func _ready() -> void:
 		printerr("ProfileController non assegnato a ProfilesPanel.")
 
 	# Richiede il profilo dell'utente corrente all'avvio
-	if profile_controller and NetworkManager.user_data.has("user_id"):
-		profile_controller.get_profiles([NetworkManager.user_data.user_id])
+	if profile_controller and NetworkManager.user_data.has("id"):
+		profile_controller.get_profiles([NetworkManager.user_data.id])
 	
 	# Nascondi il pannello di dettaglio all'inizio
 	detail_panel.hide()
@@ -47,6 +53,16 @@ func _ready() -> void:
 func _on_back_button_pressed() -> void:
 	# Torna al menu principale
 	get_tree().change_scene_to_file("res://scenes/client/main_menu.tscn")
+
+func _on_get_profile_by_name_button_pressed() -> void:
+	var text = user_name_input.text.strip_edges()
+	if text.is_empty():
+		# Se il campo è vuoto, richiede tutti i profili
+		if profile_controller:
+			profile_controller.get_all_profiles()
+		return
+	if profile_controller:
+		profile_controller.get_profile_by_name(text)
 
 func _on_get_profiles_button_pressed() -> void:
 	var text = user_id_input.text.strip_edges()
@@ -89,12 +105,12 @@ func _on_profile_selected(index: int):
 		return
 
 	var profile_data = _received_profiles[_selected_user_id]
-	var current_user_id = str(NetworkManager.user_data.get("user_id", -1))
+	var current_user_id = str(NetworkManager.user_data.get("id", -1))
 	var is_owner = (_selected_user_id == current_user_id)
 
 	# Popola e configura il pannello di dettaglio
-	detail_username_label.text = "Username: " + profile_data.get("username", "N/D")
-	detail_level_label.text = "Livello: " + str(profile_data.get("level", "N/D"))
+	detail_username_label.text = profile_data.get("username", "N/D")
+	detail_level_label.text = str(profile_data.get("level", "N/D"))
 	detail_bio_edit.text = profile_data.get("bio", "")
 	detail_avatar_edit.text = profile_data.get("avatar_url", "")
 	

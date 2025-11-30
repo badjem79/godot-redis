@@ -64,7 +64,19 @@ func _handle_get_profiles(peer_id: int, req_id: String, payload: Dictionary):
 	var ids_to_fetch = payload.get("ids", [])
 	
 	if ids_to_fetch.is_empty():
-		ids_to_fetch = BackendServer.redis_client.smembers_keys("user")
+		var username = payload.get("username", "")
+		if not username.is_empty():
+			var username_key = "user:username:" + username.to_lower()
+			var existing_id = BackendServer.redis_client.get_value(username_key)
+			if existing_id:
+				ids_to_fetch = [existing_id]
+		else:
+			# Se non viene fornito nessun ID o username, recupera tutti gli utenti
+			var all_user_keys = BackendServer.redis_client.scan_keys("user:*", 10)
+			for key in all_user_keys:
+				var id_str = key.replace("user:", "")
+				if id_str.is_valid_int():
+					ids_to_fetch.append(int(id_str))
 
 	var profiles_data = {}
 	
