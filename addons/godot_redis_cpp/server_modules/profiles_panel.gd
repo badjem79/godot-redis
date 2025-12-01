@@ -21,7 +21,6 @@ extends Control
 @onready var detail_avatar_edit: LineEdit = $ProfileDetailPanel/MarginContainer/VBox/AvatarEdit
 @onready var save_button: Button = $ProfileDetailPanel/MarginContainer/VBox/SaveButton
 @onready var status_label: Label = $ProfileDetailPanel/MarginContainer/VBox/StatusLabel
-
 @onready var achievements_container: VBoxContainer = $ProfileDetailPanel/MarginContainer/VBox/AchievementsContainer
 
 # Memorizza i dati dei profili ricevuti per un accesso rapido
@@ -41,8 +40,6 @@ func _ready() -> void:
 		profile_controller.profiles_received.connect(_on_profiles_received)
 		profile_controller.profile_update_success.connect(_on_profile_update_success)
 		profile_controller.profile_update_failed.connect(_on_profile_update_failed)
-		profile_controller.achievement_unlocked_success.connect(_on_achievement_unlocked_success)
-		profile_controller.achievement_unlocked_failed.connect(_on_achievement_unlocked_failed)
 	else:
 		printerr("ProfileController non assegnato a ProfilesPanel.")
 
@@ -101,8 +98,7 @@ func _on_profiles_received(profiles_data: Dictionary) -> void:
 		# Aggiunge l'username alla lista e l'ID utente come metadata
 		profile_list.add_item("%s (ID: %s)" % [username, user_id])
 		profile_list.set_item_metadata(profile_list.get_item_count() - 1, user_id)
-	
-	detail_panel.hide()
+
 
 func _on_profile_selected(index: int):
 	_selected_user_id = profile_list.get_item_metadata(index)
@@ -124,7 +120,7 @@ func _on_profile_selected(index: int):
 	detail_avatar_edit.editable = is_owner
 	save_button.visible = is_owner
 	status_label.text = ""
-	
+
 	_populate_achievements(profile_data.get("achievements", []), is_owner)
 	
 	detail_panel.show()
@@ -143,25 +139,8 @@ func _on_save_button_pressed():
 	# Esempio: "display_title": detail_title_edit.text
 	
 	status_label.text = "Salvataggio in corso..."
-	status_label.modulate = Color.YELLOW
 	profile_controller.update_profile(data_to_update)
 
-func _on_achievement_unlocked_success(achievement_id):
-	status_label.text = "Achievement %s Sbloccato!" % [achievement_id]
-	status_label.modulate = Color.GREEN
-
-	# 1. Aggiorna la struttura dati locale
-	if _received_profiles.has(_selected_user_id):
-		var profile_data = _received_profiles[_selected_user_id]
-		var unlocked_achievements = profile_data.get("achievements", [])
-		if not achievement_id in unlocked_achievements:
-			unlocked_achievements.append(achievement_id)
-			profile_data["achievements"] = unlocked_achievements
-			
-			# 2. Aggiorna l'interfaccia utente
-			var current_user_id = str(NetworkManager.user_data.get("id", -1))
-			var is_owner = (_selected_user_id == current_user_id)
-			_populate_achievements(unlocked_achievements, is_owner)
 
 func _on_profile_update_success(updated_fields: Dictionary):
 	status_label.text = "Profilo salvato con successo!"
@@ -171,10 +150,7 @@ func _on_profile_update_success(updated_fields: Dictionary):
 	if _received_profiles.has(_selected_user_id):
 		_received_profiles[_selected_user_id].merge(updated_fields)
 
-func _on_achievement_unlocked_failed(reason: String):
-	status_label.text = "Errore: " + reason
-	status_label.modulate = Color.RED
-	
+
 func _on_profile_update_failed(reason: String):
 	status_label.text = "Errore: " + reason
 	status_label.modulate = Color.RED
@@ -204,11 +180,7 @@ func _populate_achievements(unlocked_ids: Array, is_owner: bool):
 		if is_owner and not is_unlocked and achievement.is_client_unlockable:
 			var unlock_button = Button.new()
 			unlock_button.text = "Sblocca"
-			unlock_button.pressed.connect(func():
-				profile_controller.unlock_achievement(achievement_id)
-				status_label.text = "Salvataggio Achievement in corso..."
-				status_label.modulate = Color.YELLOW
-			)
+			unlock_button.pressed.connect(func(): profile_controller.unlock_achievement(achievement_id))
 			hbox.add_child(unlock_button)
 			
 		achievements_container.add_child(hbox)

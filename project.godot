@@ -22,6 +22,7 @@ driver/driver="Dummy"
 
 [autoload]
 
+AchievementRegistry="*res://resources/achievements/achievement_registry.gd"
 BackendServer="*res://addons/godot_redis_cpp/autoload/autoload_server.tscn"
 NetworkManager="*res://addons/godot_redis_cpp/autoload/autoload_client.tscn"
 

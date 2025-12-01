@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Achievement" load_steps=3 format=3 uid="uid://c8dfspsajljk"]
+
+[ext_resource type="Script" uid="uid://dygao0iq1m6iy" path="res://resources/achievements/achievement.gd" id="1_ntxak"]
+[ext_resource type="Texture2D" uid="uid://cwty5mibqrfp2" path="res://resources/achievements/achievement.png" id="1_ryhf8"]
+
+[resource]
+script = ExtResource("1_ntxak")
+id = "level_10"
+title = "Veterane"
+description = "Get to the 10th level"
+icon = ExtResource("1_ryhf8")
+is_client_unlockable = false
+metadata/_custom_type_script = "uid://dygao0iq1m6iy"

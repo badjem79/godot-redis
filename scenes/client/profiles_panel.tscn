@@ -15,6 +15,10 @@ theme = ExtResource("1_c8lnf")
 script = ExtResource("2_hmv7m")
 profile_controller = NodePath("ProfileController")
 
+[node name="ProfileController" type="Node" parent="."]
+script = ExtResource("3_j5f05")
+metadata/_custom_type_script = "uid://bvfpj4i8bti1o"
+
 [node name="Titolo" type="Label" parent="."]
 layout_mode = 0
 offset_left = 35.0
@@ -23,10 +27,6 @@ offset_right = 379.0
 offset_bottom = 83.0
 theme_override_font_sizes/font_size = 31
 text = "Profile Managemenmt"
-
-[node name="ProfileController" type="Node" parent="."]
-script = ExtResource("3_j5f05")
-metadata/_custom_type_script = "uid://bvfpj4i8bti1o"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
 layout_mode = 0
@@ -145,6 +145,13 @@ text = "Avatar"
 [node name="AvatarEdit" type="LineEdit" parent="ProfileDetailPanel/MarginContainer/VBox"]
 layout_mode = 2
 placeholder_text = "avatar link"
+
+[node name="Achievements" type="Label" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Achievements"
+
+[node name="AchievementsContainer" type="VBoxContainer" parent="ProfileDetailPanel/MarginContainer/VBox"]
+layout_mode = 2
 
 [node name="SaveButton" type="Button" parent="ProfileDetailPanel/MarginContainer/VBox"]
 layout_mode = 2

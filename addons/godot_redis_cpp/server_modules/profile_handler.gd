@@ -98,6 +98,10 @@ func _handle_get_profiles(peer_id: int, req_id: String, payload: Dictionary):
 				# Vista pubblica per gli altri
 				filtered_profile = _filter_profile(full_profile, public_profile_fields)
 			
+			# Aggiungi gli achievements al profilo
+			var achievements_key = "achievements:" + str(id)
+			filtered_profile["achievements"] = BackendServer.redis_client.smembers_keys(achievements_key)
+			
 			profiles_data[id] = filtered_profile
 
 	BackendServer.send_response(peer_id, "GET_PROFILES_RESULT", req_id, {"success": true, "profiles": profiles_data})
@@ -217,7 +221,8 @@ func _can_unlock_achievement(user_id: int, achievement_id: String) -> bool:
 	di ogni achievement.
 	Restituisce 'true' se l'utente può sbloccarlo, altrimenti 'false'.
 	"""
-	# L'implementazione base non permette di sbloccare nessun achievement
-	# forzando lo sviluppatore a implementare la logica specifica.
-	print("AVVISO: La logica per l'achievement '%s' non è implementata." % achievement_id)
+
+	# La classe base non ha logica specifica.
+	# Per default, non approviamo nulla che non sia gestito da una classe figlia.
+	print("AVVISO: La logica per l'achievement '%s' non è implementata in un handler specifico." % achievement_id)
 	return false

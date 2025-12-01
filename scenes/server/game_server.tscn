@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bcor1juy76ms8" path="res://addons/godot_redis_cpp/server_modules/login_handler.gd" id="1_dadn3"]
 [ext_resource type="Script" uid="uid://bhsguov4gk0hs" path="res://scenes/server/game_server.gd" id="1_pmcf8"]
 [ext_resource type="Script" uid="uid://byghqd21xppbw" path="res://scenes/server/server_panel.gd" id="2_jb2ot"]
-[ext_resource type="Script" uid="uid://c23it8dhtbrdw" path="res://addons/godot_redis_cpp/server_modules/profile_handler.gd" id="3_l63aw"]
+[ext_resource type="Script" uid="uid://by372e5fohoon" path="res://scenes/server/my_profile_handler.gd" id="3_l63aw"]
 
 [node name="GameServer" type="Node"]
 script = ExtResource("1_pmcf8")
@@ -12,9 +12,9 @@ script = ExtResource("1_pmcf8")
 script = ExtResource("1_dadn3")
 metadata/_custom_type_script = "uid://bcor1juy76ms8"
 
-[node name="ProfileHandler" type="Node" parent="."]
+[node name="MyProfileHandler" type="Node" parent="."]
 script = ExtResource("3_l63aw")
-metadata/_custom_type_script = "uid://c23it8dhtbrdw"
+metadata/_custom_type_script = "uid://by372e5fohoon"
 
 [node name="ServerPanel" type="Control" parent="."]
 layout_mode = 3
