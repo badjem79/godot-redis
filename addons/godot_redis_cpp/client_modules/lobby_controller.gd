@@ -34,11 +34,11 @@ func _exit_tree():
 # --- API Pubblica del Controller ---
 
 func request_lobby_list():
-	NetworkManager.send_message("LOBBY_GET_LIST", {})
+	NetworkManager.send_message("LOBBY_GET_LIST", {}, _on_lobby_list_update)
 
 func create_lobby(name: String, max_players: int, is_private: bool):
 	var payload = {"name": name, "max_players": max_players, "private": is_private}
-	NetworkManager.send_message("LOBBY_CREATE", payload, _on_lobby_list_update)
+	NetworkManager.send_message("LOBBY_CREATE", payload, _on_lobby_join_success)
 
 func join_lobby(lobby_id: String):
 	NetworkManager.send_message("LOBBY_JOIN", {"id": lobby_id}, _on_lobby_join_success)
@@ -51,6 +51,17 @@ func set_ready_status(is_ready: bool):
 
 func start_game():
 	NetworkManager.send_message("LOBBY_START_GAME", {})
+
+func join_matchmaking_queue(matchmaking_type: String):
+	"""
+	Richiede di entrare in una coda di matchmaking per una specifica modalità.
+	Esempio: join_matchmaking_queue("default_1v1")
+	"""
+	NetworkManager.send_message("MATCHMAKING_JOIN_QUEUE", {"type": matchmaking_type})
+
+func leave_matchmaking_queue():
+	"""Richiede di uscire dalla coda di matchmaking attuale."""
+	NetworkManager.send_message("MATCHMAKING_LEAVE_QUEUE", {})
 
 
 # --- Gestori delle Risposte dal Server ---

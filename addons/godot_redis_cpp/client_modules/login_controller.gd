@@ -8,6 +8,16 @@ signal login_success(user_data)
 signal login_failed(reason)
 signal logout_success
 
+func _ready():
+	# Il LoginController ora reagisce ai segnali di alto livello del NetworkManager.
+	# Quando una sessione viene ripristinata, è a tutti gli effetti un login riuscito.
+	NetworkManager.session_reestablished.connect(func(user_data): emit_signal("login_success", user_data))
+	# Quando la ri-autenticazione fallisce, è un login fallito.
+	NetworkManager.authentication_required.connect(func(reason): emit_signal("login_failed", reason))
+
+	# Avvia il processo di connessione
+	# NetworkManager.connect_to_server() # se è già connesso sctta solo la chiamata al segnale
+
 func attempt_login(username: String, password: String):
 	"""Invia una richiesta di login al server."""
 	if username.is_empty() or password.is_empty():
@@ -44,8 +54,9 @@ func _on_login_result(payload: Dictionary): # Corrisponde a "LOGIN_RESULT"
 			emit_signal("login_failed", "Risposta del server non valida.")
 			return
 		
-		# Memorizza il token e i dati utente nel NetworkManager per l'uso globale
+		# Memorizza il JWT e i dati utente nel NetworkManager per l'uso globale
 		NetworkManager.session_token = received_token
+		NetworkManager.save_token_to_file() # <-- SALVA IL TOKEN
 		NetworkManager.user_data = received_user_data
 		
 		emit_signal("login_success", received_user_data)
@@ -67,6 +78,8 @@ func _on_logout_result(payload: Dictionary): # Corrisponde a "LOGOUT_RESULT"
 		# Anche se il logout fallisce lato server (improbabile), forziamo la pulizia lato client.
 		printerr("LoginController: Il server ha risposto con un fallimento al logout. Forzatura logout locale.")
 	
+	# La cosa più importante per il logout è distruggere il token lato client.
 	NetworkManager.session_token = ""
+	NetworkManager.delete_token_file() # <-- CANCELLA IL TOKEN
 	NetworkManager.user_data = {}
 	emit_signal("logout_success")

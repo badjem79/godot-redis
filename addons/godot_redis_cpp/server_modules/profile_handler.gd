@@ -47,20 +47,19 @@ func get_handled_message_types() -> Array[String]:
 	return ["PROFILE_UPDATE", "ACHIEVEMENT_UNLOCK", "GET_PROFILES"]
 
 # Metodo principale chiamato dal dispatcher del server
-func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, token: String):
+func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, user_id: int):
 	# Tutti i messaggi gestiti da questo handler richiedono autenticazione.
-	# Il server principale ha già verificato il token e l'autenticazione.
+	# Il server principale ha già verificato il token e ci ha passato l'user_id.
 	match msg_type:
 		"PROFILE_UPDATE":
-			_handle_profile_update(peer_id, req_id, payload)
+			_handle_profile_update(peer_id, user_id, req_id, payload)
 		"ACHIEVEMENT_UNLOCK":
-			_handle_achievement_unlock(peer_id, req_id, payload)
+			_handle_achievement_unlock(peer_id, user_id, req_id, payload)
 		"GET_PROFILES":
-			_handle_get_profiles(peer_id, req_id, payload)
+			_handle_get_profiles(peer_id, user_id, req_id, payload)
 
 # --- Gestori di Logica Interni ---
-func _handle_get_profiles(peer_id: int, req_id: String, payload: Dictionary):
-	var requester_user_id = BackendServer.authenticated_peers[peer_id].user_id
+func _handle_get_profiles(peer_id: int, requester_user_id: int, req_id: String, payload: Dictionary):
 	var ids_to_fetch = payload.get("ids", [])
 	
 	if ids_to_fetch.is_empty():
@@ -113,8 +112,7 @@ func _filter_profile(full_profile: Dictionary, allowed_fields: Array) -> Diction
 			filtered_dict[field] = full_profile[field]
 	return filtered_dict
 
-func _handle_profile_update(peer_id: int, req_id: String, payload: Dictionary):
-	var user_id = BackendServer.authenticated_peers[peer_id].user_id
+func _handle_profile_update(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var user_key = "user:" + str(user_id)
 	
 	var fields_to_update = {}
@@ -160,8 +158,7 @@ func _handle_profile_update(peer_id: int, req_id: String, payload: Dictionary):
 		})
 
 
-func _handle_achievement_unlock(peer_id: int, req_id: String, payload: Dictionary):
-	var user_id = BackendServer.authenticated_peers[peer_id].user_id
+func _handle_achievement_unlock(peer_id: int, user_id: int, req_id: String, payload: Dictionary):
 	var achievement_id = payload.get("id", "")
 	
 	if achievement_id.is_empty():

@@ -28,22 +28,21 @@ class PendingPeer:
 		connection = p_tcp
 		connect_time = Time.get_ticks_msec()
 
-
 var tcp_server := TCPServer.new()
 var pending_peers: Array[PendingPeer] = []
 var peers: Dictionary
 
+func is_listening() -> bool:
+	return tcp_server.is_listening()
 
 func listen(port: int) -> int:
 	assert(not tcp_server.is_listening())
 	return tcp_server.listen(port)
 
-
 func stop() -> void:
 	tcp_server.stop()
 	pending_peers.clear()
 	peers.clear()
-
 
 func send(peer_id: int, message: String) -> int:
 	var type := typeof(message)
@@ -64,6 +63,15 @@ func send(peer_id: int, message: String) -> int:
 		return socket.send_text(message)
 	return socket.send(var_to_bytes(message))
 
+func disconnect_peer(peer_id: int, code: int = 1000, reason: String = ""):
+	"""
+	Chiude la connessione per un peer specifico.
+	"""
+	if peers.has(peer_id):
+		var socket: WebSocketPeer = peers[peer_id]
+		socket.close(code, reason)
+		# La rimozione effettiva del peer avverrà nel ciclo di poll()
+		# quando lo stato della connessione cambierà.
 
 func get_message(peer_id: int) -> Variant:
 	assert(peers.has(peer_id))
@@ -104,7 +112,7 @@ func poll() -> void:
 			if p.connect_time + handshake_timout < Time.get_ticks_msec():
 				# Timeout.
 				to_remove.append(p)
-			continue  # Still pending.
+			continue # Still pending.
 
 		to_remove.append(p)
 
@@ -139,17 +147,17 @@ func _connect_pending(p: PendingPeer) -> bool:
 			var id := randi_range(2, 1 << 30)
 			peers[id] = p.ws
 			client_connected.emit(id)
-			return true  # Success.
+			return true # Success.
 		elif state != WebSocketPeer.STATE_CONNECTING:
-			return true  # Failure.
-		return false  # Still connecting.
+			return true # Failure.
+		return false # Still connecting.
 	elif p.tcp.get_status() != StreamPeerTCP.STATUS_CONNECTED:
-		return true  # TCP disconnected.
+		return true # TCP disconnected.
 	elif not use_tls:
 		# TCP is ready, create WS peer.
 		p.ws = _create_peer()
 		p.ws.accept_stream(p.tcp)
-		return false  # WebSocketPeer connection is pending.
+		return false # WebSocketPeer connection is pending.
 
 	else:
 		if p.connection == p.tcp:
@@ -162,9 +170,9 @@ func _connect_pending(p: PendingPeer) -> bool:
 		if status == StreamPeerTLS.STATUS_CONNECTED:
 			p.ws = _create_peer()
 			p.ws.accept_stream(p.connection)
-			return false  # WebSocketPeer connection is pending.
+			return false # WebSocketPeer connection is pending.
 		if status != StreamPeerTLS.STATUS_HANDSHAKING:
-			return true  # Failure.
+			return true # Failure.
 
 		return false
 

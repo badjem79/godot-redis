@@ -1,0 +1,147 @@
+[gd_scene load_steps=3 format=3 uid="uid://bcvsneoa66o1o"]
+
+[ext_resource type="Script" uid="uid://b8vgo6m8oynt8" path="res://scenes/client/lobby_panel.gd" id="1_4gv6u"]
+[ext_resource type="Script" uid="uid://jpm2bjheepwn" path="res://addons/godot_redis_cpp/client_modules/lobby_controller.gd" id="2_37urw"]
+
+[node name="LobbyPanel" type="Control" node_paths=PackedStringArray("lobby_controller")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_4gv6u")
+lobby_controller = NodePath("LobbyController")
+
+[node name="LobbyController" type="Node" parent="."]
+script = ExtResource("2_37urw")
+metadata/_custom_type_script = "uid://jpm2bjheepwn"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MatchmakingBox" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/MatchmakingBox"]
+layout_mode = 2
+text = "Matchmaking 1v1"
+
+[node name="JoinQueueButton" type="Button" parent="VBoxContainer/MatchmakingBox"]
+layout_mode = 2
+text = "Join Queue"
+
+[node name="LeaveQueueButton" type="Button" parent="VBoxContainer/MatchmakingBox"]
+layout_mode = 2
+text = "Leave Queue"
+
+[node name="MatchmakingStatusLabel" type="Label" parent="VBoxContainer/MatchmakingBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BackButton" type="Button" parent="VBoxContainer/MatchmakingBox"]
+layout_mode = 2
+text = "Back"
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="LobbyListBox" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/LobbyListBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/LobbyListBox/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/LobbyListBox/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Public Lobbies"
+
+[node name="RefreshButton" type="Button" parent="VBoxContainer/LobbyListBox/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Refresh
+"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/LobbyListBox/VBoxContainer"]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LobbyList" type="ItemList" parent="VBoxContainer/LobbyListBox/VBoxContainer/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator" type="VSeparator" parent="VBoxContainer/LobbyListBox"]
+layout_mode = 2
+
+[node name="CreateLobbyBox" type="VBoxContainer" parent="VBoxContainer/LobbyListBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="VBoxContainer/LobbyListBox/CreateLobbyBox"]
+layout_mode = 2
+text = "Create Lobby"
+
+[node name="LobbyNameInput" type="LineEdit" parent="VBoxContainer/LobbyListBox/CreateLobbyBox"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+placeholder_text = "Lobby Name"
+
+[node name="CreateLobbyButton" type="Button" parent="VBoxContainer/LobbyListBox/CreateLobbyBox"]
+layout_mode = 2
+size_flags_horizontal = 8
+text = "Create Lobby"
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="CurrentLobbyPanel" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/CurrentLobbyPanel"]
+layout_mode = 2
+
+[node name="LobbyTitleLabel" type="Label" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer"]
+layout_mode = 2
+text = "Lobby: [Nome]"
+
+[node name="PlayerListLabel" type="Label" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer"]
+layout_mode = 2
+text = "Giocatori:"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerList" type="ItemList" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ReadyButton" type="Button" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Set Ready
+"
+
+[node name="LeaveLobbyButton" type="Button" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Leave  Lobby"
+
+[node name="StartGameButton" type="Button" parent="VBoxContainer/CurrentLobbyPanel/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+text = "Start Game"

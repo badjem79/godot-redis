@@ -3,8 +3,6 @@ extends Control
 @export var login_controller: LoginController
 
 # --- Riferimenti ai Nodi della UI ---
-# Assumo che questi nodi esistano nella scena con questi percorsi.
-# Se i percorsi sono diversi, andranno aggiornati qui!
 
 # Sezione Registrazione
 @onready var register_username_input: LineEdit = $PanelRegister/UserLineEdit
@@ -18,6 +16,9 @@ extends Control
 @onready var login_button: Button = $PanelLogin/LoginButton
 @onready var login_status_label: Label = $PanelLogin/LoginStatus
 
+@onready var connection_status_label: Label =  $Label/ConnectionStatus
+
+@onready var connection_button: Button = $Label/ConnectionStatus/Button
 
 func _ready() -> void:
 	# Controlla se il LoginController è stato assegnato nell'editor
@@ -26,10 +27,11 @@ func _ready() -> void:
 		register_status_label.text = "ERRORE: Configurazione mancante."
 		login_status_label.text = "ERRORE: Configurazione mancante."
 		return
-
+	
 	# Connetti i segnali dei pulsanti
 	register_button.pressed.connect(_on_register_button_pressed)
 	login_button.pressed.connect(_on_login_button_pressed)
+	connection_button.pressed.connect(_on_connection_button_pressed)
 	
 	# Connetti il segnale "Invio" dai campi password per un accesso rapido
 	register_password_input.text_submitted.connect(_on_register_button_pressed)
@@ -41,6 +43,8 @@ func _ready() -> void:
 	login_controller.login_success.connect(_on_login_success)
 	login_controller.login_failed.connect(_on_login_failed)
 
+	if not NetworkManager.session_token.is_empty():
+		NetworkManager.connect_to_server()
 
 # --- Gestori dei segnali dei Pulsanti ---
 
@@ -56,7 +60,8 @@ func _on_login_button_pressed(_extra_arg = null) -> void:
 	login_status_label.text = "Login in corso..."
 	login_controller.attempt_login(username, password)
 
-
+func _on_connection_button_pressed() -> void:
+	NetworkManager.connect_to_server()
 # --- Gestori dei segnali dal LoginController ---
 
 func _on_registration_success() -> void:
@@ -73,3 +78,14 @@ func _on_login_success(user_data: Dictionary) -> void:
 
 func _on_login_failed(reason: String) -> void:
 	login_status_label.text = "Login fallito: " + reason
+	
+func _process(_delta):
+	if not NetworkManager.ws_connected:
+		connection_status_label.text = "Not Connected"
+		connection_button.disabled = false
+	else:
+		if NetworkManager.ws_connecting:
+			connection_status_label.text = "Connecting..."
+		else:
+			connection_status_label.text = "Connected"
+		connection_button.disabled = true

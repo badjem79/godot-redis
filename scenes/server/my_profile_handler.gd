@@ -5,7 +5,7 @@ extends "res://addons/godot_redis_cpp/server_modules/profile_handler.gd"
 # OVERRIDE DELLE FUNZIONI DI VALIDAZIONE
 #=============================================================================
 
-func _can_unlock_achievement(user_id: int, achievement_id: String) -> bool:
+func _can_unlock_achievement(_user_id: int, achievement_id: String) -> bool:
 	"""
 	Sovrascriviamo la logica di validazione degli achievement.
 	Qui implementiamo le regole specifiche del nostro gioco.

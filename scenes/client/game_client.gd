@@ -14,7 +14,8 @@ func _ready():
 	
 	# Avvia il primo tentativo di connessione.
 	# Il NetworkManager gestirà automaticamente i tentativi di riconnessione se questa dovesse cadere.
-	NetworkManager.connect_to_server()
+	if not NetworkManager.session_token.is_empty():
+		NetworkManager.connect_to_server()
 
 
 func _on_connection_established():

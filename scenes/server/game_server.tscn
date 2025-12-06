@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://2filleyjash0"]
+[gd_scene load_steps=6 format=3 uid="uid://2filleyjash0"]
 
 [ext_resource type="Script" uid="uid://bcor1juy76ms8" path="res://addons/godot_redis_cpp/server_modules/login_handler.gd" id="1_dadn3"]
 [ext_resource type="Script" uid="uid://bhsguov4gk0hs" path="res://scenes/server/game_server.gd" id="1_pmcf8"]
 [ext_resource type="Script" uid="uid://byghqd21xppbw" path="res://scenes/server/server_panel.gd" id="2_jb2ot"]
 [ext_resource type="Script" uid="uid://by372e5fohoon" path="res://scenes/server/my_profile_handler.gd" id="3_l63aw"]
+[ext_resource type="Script" uid="uid://bqw767s2af3g6" path="res://addons/godot_redis_cpp/server_modules/lobby_handler.gd" id="4_4t51v"]
 
 [node name="GameServer" type="Node"]
 script = ExtResource("1_pmcf8")
@@ -16,19 +17,24 @@ metadata/_custom_type_script = "uid://bcor1juy76ms8"
 script = ExtResource("3_l63aw")
 metadata/_custom_type_script = "uid://by372e5fohoon"
 
+[node name="LobbyHandler" type="Node" parent="."]
+script = ExtResource("4_4t51v")
+metadata/_custom_type_script = "uid://bqw767s2af3g6"
+
 [node name="ServerPanel" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 1154.0
 offset_bottom = 647.0
 script = ExtResource("2_jb2ot")
+metadata/_edit_lock_ = true
 
 [node name="Panel" type="Panel" parent="ServerPanel"]
 layout_mode = 0
-offset_left = 320.0
-offset_top = 141.0
-offset_right = 861.0
-offset_bottom = 490.0
+offset_left = 82.0
+offset_top = 165.0
+offset_right = 623.0
+offset_bottom = 514.0
 
 [node name="Label" type="Label" parent="ServerPanel/Panel"]
 layout_mode = 0
@@ -61,3 +67,45 @@ offset_top = 152.0
 offset_right = 346.0
 offset_bottom = 175.0
 text = "ko"
+
+[node name="StopButton" type="Button" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 267.0
+offset_right = 137.0
+offset_bottom = 320.0
+text = "STOP"
+
+[node name="StartButton" type="Button" parent="ServerPanel/Panel"]
+layout_mode = 0
+offset_left = 377.0
+offset_top = 264.0
+offset_right = 527.0
+offset_bottom = 335.0
+text = "START"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="ServerPanel"]
+layout_mode = 0
+offset_left = 648.0
+offset_top = 164.0
+offset_right = 1108.0
+offset_bottom = 508.0
+horizontal_scroll_mode = 0
+
+[node name="ClientsList" type="ItemList" parent="ServerPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Label" type="Label" parent="ServerPanel"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.56200004
+anchor_top = 0.266
+anchor_right = 0.56200004
+anchor_bottom = 0.266
+offset_left = 0.45196533
+offset_top = -40.102005
+offset_right = 84.451965
+offset_bottom = -17.102005
+text = "Clients List"

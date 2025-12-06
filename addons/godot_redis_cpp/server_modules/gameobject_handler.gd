@@ -19,9 +19,7 @@ func get_handled_message_types() -> Array[String]:
 		"GAMEOBJECT_ACL_ADD", "GAMEOBJECT_ACL_REMOVE"
 	]
 
-func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, token: String):
-	var user_id = BackendServer.authenticated_peers[peer_id].user_id
-
+func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, user_id: int):
 	match msg_type:
 		"GAMEOBJECT_CREATE": _handle_create(peer_id, user_id, req_id, payload)
 		"GAMEOBJECT_GET": _handle_get(peer_id, user_id, req_id, payload)

@@ -6,6 +6,8 @@
 script = ExtResource("1_glfno")
 redis_client = NodePath("RedisClient")
 WEB_PORT = 9999
+private_key_path = "res://rsa_keys/private_key.pem"
+public_key_path = "res://rsa_keys/public_key.pem"
 
 [node name="RedisClient" type="RedisClient" parent="."]
 auto_connect = false

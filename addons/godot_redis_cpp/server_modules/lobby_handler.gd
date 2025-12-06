@@ -20,9 +20,7 @@ func get_handled_message_types() -> Array[String]:
 	]
 
 
-func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, token: String):
-	var user_id = BackendServer.authenticated_peers[peer_id].user_id
-	
+func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dictionary, user_id: int):
 	# Un giocatore non può fare operazioni sulla lobby se è già in una partita
 	var current_lobby_id = BackendServer.redis_client.hget_value("user:" + str(user_id), "current_lobby_id")
 	
@@ -42,7 +40,7 @@ func handle_message(peer_id: int, msg_type: String, req_id: String, payload: Dic
 		"MATCHMAKING_JOIN_QUEUE":
 			_handle_join_queue(peer_id, user_id, req_id, payload)
 		"MATCHMAKING_LEAVE_QUEUE":
-			_handle_leave_queue(peer_id, user_id, req_id,  payload)
+			_handle_leave_queue(peer_id, user_id, req_id, payload)
 
 # --- Funzioni Helper ---
 func _handle_get_list(peer_id: int, req_id: String):
@@ -222,7 +220,7 @@ func _handle_join_queue(peer_id: int, user_id: int, req_id: String, payload: Dic
 		var lobby_data = {
 			"id": new_lobby_id,
 			"name": "Matchmaking Game #" + str(new_lobby_id),
-			"owner_id": -1, #system
+			"owner_id": - 1, # system
 			"max_players": max_players_for_mode,
 			"is_private": "1", # Le lobby di matchmaking sono sempre private
 			"status": "matching",
