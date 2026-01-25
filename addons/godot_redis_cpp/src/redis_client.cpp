@@ -69,6 +69,9 @@ void RedisClient::_bind_methods() {
     // --- BIND DEL METODO DEL ---
     ClassDB::bind_method(D_METHOD("del_keys", "keys"), &RedisClient::del_keys);
 
+    // --- BIND DEL METODO EXISTS ---
+    ClassDB::bind_method(D_METHOD("exists", "key"), &RedisClient::exists);
+
     // Segnale per notificare il risultato della connessione
     ADD_SIGNAL(MethodInfo("connection_status_changed", PropertyInfo(Variant::BOOL, "is_connected"), PropertyInfo(Variant::STRING, "message")));
 
@@ -165,6 +168,26 @@ bool RedisClient::set_value(const String& key, const String& value) {
         }
     } catch (const sw::redis::Error &e) {
         String error_message = "[Redis C++] Errore in set_value: ";
+        error_message += e.what();
+        UtilityFunctions::push_error(error_message);
+        return false;
+    }
+}
+
+bool RedisClient::exists(const String& key) {
+    if (!is_connected()) return false;
+
+    try {
+        // Il comando EXISTS di Redis restituisce il numero di chiavi trovate (1 o 0 in questo caso).
+        // Lo convertiamo in un booleano.
+        if (is_in_transaction()) {
+            _transaction->exists(key.utf8().get_data());
+            return true; // In transazione, assumiamo che il comando venga accodato
+        } else {
+            return _redis_client->exists(key.utf8().get_data()) > 0;
+        }
+    } catch (const sw::redis::Error &e) {
+        String error_message = "[Redis C++] Errore in exists: ";
         error_message += e.what();
         UtilityFunctions::push_error(error_message);
         return false;

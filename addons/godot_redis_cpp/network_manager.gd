@@ -1,6 +1,8 @@
 extends Node
 
-const TOKEN_SAVE_PATH = "user://session.dat" # Usiamo un'estensione generica
+const TOKEN_SAVE_PATH_TEMPLATE = "user://{instance_name}_session.dat"
+
+@export var game_instance_name = "base_game_instance"
 
 @export var server_url = "ws://127.0.0.1:8888" # Sostituire con wss:// e configurare Caddy/TLS per la produzione
 
@@ -10,6 +12,9 @@ const TOKEN_SAVE_PATH = "user://session.dat" # Usiamo un'estensione generica
 @export var reconnect_backoff_factor = 1.5 # Fattore di moltiplicazione per ogni tentativo (es. 1.5, 2.0).
 @export var reconnect_jitter = 0.2 # Variazione casuale per evitare sincronizzazione (es. 0.2 = ±20%).
 @export var max_reconnect_attempts = 10 # Numero massimo di tentativi di riconnessione
+
+@export_group("Request Handling")
+@export var REQUEST_TIMEOUT_SECONDS = 15.0 # Secondi prima che una richiesta senza risposta vada in timeout
 
 # --- Segnali per i Moduli (es. LoginController) ---
 signal connection_established
@@ -33,7 +38,7 @@ var current_reconnect_attempts = 0
 
 var request_id_counter = 0
 # Dizionario per memorizzare le callback in attesa di una risposta
-var pending_requests = {} # request_id -> Callable
+var pending_requests = {} # request_id -> { "callback": Callable, "timestamp": float }
 
 
 func _ready():
@@ -45,9 +50,6 @@ func _ready():
 	reconnect_timer.one_shot = true # Il timer si attiva una sola volta per ogni tentativo
 	reconnect_timer.timeout.connect(_on_reconnect_timer_timeout)
 
-	# Carica il token salvato, se esiste, all'avvio del gioco.
-	_load_token_from_file()
-
 	# 1. In produzione, qui configureresti il TLS per WSS
 	# var cert = load("res://cert.pem")
 	# websocket.tls_options = TLSOptions.client(cert)
@@ -56,10 +58,31 @@ func _ready():
 	websocket.connected_to_server.connect(_on_connection_established)
 	websocket.connection_closed.connect(_on_connection_closed)
 	websocket.message_received.connect(_on_message_received)
+
+	# Carica il token salvato, se esiste, all'avvio del gioco, usando il nome istanza corretto.
+	# load_token_from_file()
 	
 	# 4. Start connection manually
 	# connect_to_server()
 
+func _process(_delta: float) -> void:
+	# Controlla le richieste in attesa per rilevare eventuali timeout.
+	if pending_requests.is_empty():
+		return
+
+	var now = Time.get_unix_time_from_system()
+	var timed_out_keys = []
+	for req_id in pending_requests:
+		var request_data = pending_requests[req_id]
+		if now - request_data.timestamp > REQUEST_TIMEOUT_SECONDS:
+			timed_out_keys.append(req_id)
+	
+	for req_id in timed_out_keys:
+		var request_data = pending_requests.get(req_id)
+		printerr("NetworkManager: Richiesta '", req_id, "' scaduta.")
+		if request_data and request_data.callback.is_valid():
+			request_data.callback.call({"success": false, "message": "La richiesta è andata in timeout."})
+		pending_requests.erase(req_id)
 
 func connect_to_server():
 	if ws_connected:
@@ -159,10 +182,10 @@ func _on_message_received(message: String):
 
 	# Se questa è una risposta a una richiesta specifica, gestiscila qui
 	if not req_id.is_empty() and pending_requests.has(req_id):
-		var callback = pending_requests[req_id]
+		var request_data = pending_requests[req_id]
 		pending_requests.erase(req_id) # Rimuovi la richiesta in attesa
-		callback.call(payload) # Chiama la callback con il payload della risposta
-		return # Abbiamo finito
+		if request_data.callback.is_valid():
+			request_data.callback.call(payload) # Chiama la callback con il payload della risposta
 
 	# Dispatching al modulo corretto
 	if message_handlers.has(msg_type):
@@ -173,34 +196,40 @@ func _on_message_received(message: String):
 
 # --- API Pubblica per i Moduli ---
 
+func get_token_save_path() -> String:
+	return TOKEN_SAVE_PATH_TEMPLATE.format({"instance_name": game_instance_name})
+
 func save_token_to_file():
 	"""Salva il token di sessione corrente in un file."""
 	if session_token.is_empty():
 		# Se il token è vuoto, assicurati che il file venga eliminato.
 		delete_token_file()
 		return
-
-	var file = FileAccess.open(TOKEN_SAVE_PATH, FileAccess.WRITE)
+	
+	var path = get_token_save_path()
+	var file = FileAccess.open(path, FileAccess.WRITE)
 	if file:
 		file.store_string(session_token)
-		print("NetworkManager: Token salvato su file.")
+		print("NetworkManager: Token salvato su file: ", path)
 
 func delete_token_file():
 	"""Elimina il file del token salvato."""
-	if FileAccess.file_exists(TOKEN_SAVE_PATH):
-		var err = DirAccess.remove_absolute(TOKEN_SAVE_PATH)
+	var path = get_token_save_path()
+	if FileAccess.file_exists(path):
+		var err = DirAccess.remove_absolute(path)
 		if err == OK:
-			print("NetworkManager: File del token eliminato.")
+			print("NetworkManager: File del token eliminato: ", path)
 		else:
-			printerr("NetworkManager: Impossibile eliminare il file del token, errore: ", err)
+			printerr("NetworkManager: Impossibile eliminare il file del token '", path, "', errore: ", err)
 
-func _load_token_from_file():
+func load_token_from_file():
 	"""Carica il token da un file, se esiste."""
-	if FileAccess.file_exists(TOKEN_SAVE_PATH):
-		var file = FileAccess.open(TOKEN_SAVE_PATH, FileAccess.READ)
+	var path = get_token_save_path()
+	if FileAccess.file_exists(path):
+		var file = FileAccess.open(path, FileAccess.READ)
 		if file:
 			session_token = file.get_as_text()
-			print("NetworkManager: Token caricato dal file.")
+			print("NetworkManager: Token caricato dal file: ", path)
 
 func _handle_failed_reconnect(reason: String):
 	"""Logica centralizzata per gestire un fallimento di riconnessione."""
@@ -223,8 +252,11 @@ func send_message(type: String, payload: Dictionary, on_response: Callable = Cal
 	
 	# Se c'è una callback, memorizzala
 	if on_response.is_valid():
-		pending_requests[req_id] = on_response
-		# Potremmo aggiungere un timer per il timeout qui
+		pending_requests[req_id] = {
+			"callback": on_response,
+			"timestamp": Time.get_unix_time_from_system()
+		}
+		
 	
 	var message = {
 		"type": type,

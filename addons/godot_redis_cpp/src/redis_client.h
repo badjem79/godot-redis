@@ -83,6 +83,9 @@ namespace godot {
         // --- METODO PER DEL ---
         bool del_keys(const Array& keys);
 
+        // --- METODO PER EXISTS ---
+        bool exists(const String& key);
+
         // SCAN
         Array scan_keys(const String& pattern, int64_t count = 10);
         

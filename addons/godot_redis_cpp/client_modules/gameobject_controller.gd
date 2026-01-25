@@ -1,7 +1,8 @@
 # GameObjectController.gd
+# Handles client-side GameObject lifecycle and synchronization.
 extends Node
 
-# Segnali per le risposte del server
+# Signals for server responses
 signal object_created(data)
 signal objects_received(objects)
 signal object_updated(data)
@@ -22,17 +23,17 @@ var _registered_handlers = [
 
 func _ready():
 	for msg_type in _registered_handlers:
+		# Dynamically bind handlers, e.g. "GAMEOBJECT_CREATE_RESULT" -> "_on_gameobject_create_result"
 		NetworkManager.register_handler(msg_type, Callable(self, "_on_" + msg_type.to_lower()))
 
 func _exit_tree():
 	for msg_type in _registered_handlers:
 		NetworkManager.unregister_handler(msg_type)
 
-
-# --- API PUBBLICA DEL CONTROLLER ---
+# --- Public API ---
 
 func create_object(type: String, data: Dictionary, parent_key: String = ""):
-	"""Richiede la creazione di un nuovo GameObject."""
+	"""Requests the creation of a new client-owned GameObject."""
 	var payload = {
 		"type": type,
 		"data": data,
@@ -41,30 +42,28 @@ func create_object(type: String, data: Dictionary, parent_key: String = ""):
 	NetworkManager.send_message("GAMEOBJECT_CREATE", payload, _on_gameobject_create_result)
 
 func get_objects(keys: Array):
-	"""Richiede i dati di uno o più GameObjects."""
+	"""Requests data for one or more GameObjects by their keys."""
 	if keys.is_empty(): return
 	NetworkManager.send_message("GAMEOBJECT_GET", {"keys": keys}, _on_gameobject_get_result)
 	
 func get_my_objects(type_filter: String = ""):
-	"""
-	Richiede tutti i GameObject posseduti dall'utente corrente.
-	Se type_filter è specificato, richiede solo oggetti di quel tipo.
-	"""
+	"""Requests all GameObjects owned by the current user."""
 	NetworkManager.send_message("GAMEOBJECT_GET_MINE", {"type": type_filter}, _on_gameobject_get_result)
 
 func update_object(key: String, data: Dictionary):
-	"""Richiede l'aggiornamento dei dati di un GameObject esistente."""
+	"""Requests an update for specific fields of a GameObject."""
 	if data.is_empty(): return
 	var payload = {"key": key, "data": data}
 	NetworkManager.send_message("GAMEOBJECT_UPDATE", payload, _on_gameobject_update_result)
 	
 func delete_object(key: String):
-	"""Richiede la cancellazione di un GameObject."""
+	"""Requests the deletion of a GameObject."""
 	NetworkManager.send_message("GAMEOBJECT_DELETE", {"key": key}, _on_gameobject_delete_result)
+
 func add_to_acl(object_key: String, acl_type: String, user_ids: Array):
 	"""
-	Aggiunge utenti a una lista di controllo accessi.
-	acl_type può essere "read" o "write".
+	Adds users to an Access Control List.
+	acl_type: "read" or "write"
 	"""
 	var payload = {
 		"key": object_key,
@@ -74,7 +73,7 @@ func add_to_acl(object_key: String, acl_type: String, user_ids: Array):
 	NetworkManager.send_message("GAMEOBJECT_ACL_ADD", payload, _on_gameobject_acl_add_result)
 
 func remove_from_acl(object_key: String, acl_type: String, user_ids: Array):
-	"""Rimuove utenti da una lista di controllo accessi."""
+	"""Removes users from an Access Control List."""
 	var payload = {
 		"key": object_key,
 		"acl_type": acl_type,
@@ -82,7 +81,7 @@ func remove_from_acl(object_key: String, acl_type: String, user_ids: Array):
 	}
 	NetworkManager.send_message("GAMEOBJECT_ACL_REMOVE", payload, _on_gameobject_acl_remove_result)
 
-# --- GESTORI DELLE RISPOSTE ---
+# --- Response Handlers ---
 
 func _on_gameobject_create_result(payload):
 	if payload.get("success"):
@@ -109,8 +108,8 @@ func _on_gameobject_delete_result(payload):
 		_on_gameobject_error(payload)
 
 func _on_gameobject_error(payload):
-	var reason = payload.get("message", "Errore sconosciuto dal GameObjectHandler.")
-	printerr("GameObject operazione fallita: ", reason)
+	var reason = payload.get("message", "Unknown error from GameObjectHandler.")
+	printerr("GameObject operation failed: ", reason)
 	emit_signal("operation_failed", reason)
 
 func _on_gameobject_acl_add_result(payload):
